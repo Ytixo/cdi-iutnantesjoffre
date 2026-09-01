@@ -97,6 +97,7 @@ export function App() {
         activeUserMonitorId={activeUserMonitorId}
         setActiveUserMonitorId={setActiveUserMonitorId}
         isSynced={isSynced}
+        dataSource={dataSource}
         settings={settings}
         conflictsCount={conflicts.length}
       />

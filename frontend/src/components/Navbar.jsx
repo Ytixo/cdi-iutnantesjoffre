@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, PlusCircle, Settings, Wifi, WifiOff, Calendar, Table, BarChart3, Check } from 'lucide-react';
+import { BookOpen, PlusCircle, Settings, Calendar, Table, BarChart3 } from 'lucide-react';
 
 export function Navbar({
   activeTab,
@@ -10,10 +10,38 @@ export function Navbar({
   activeUserMonitorId,
   setActiveUserMonitorId,
   isSynced,
+  dataSource = 'local',
   settings,
   conflictsCount = 0
 }) {
   const activeMonitor = monitors.find(m => m.id === activeUserMonitorId) || monitors[0];
+
+  const getStatusInfo = () => {
+    if (dataSource === 'supabase') {
+      return {
+        label: isSynced ? 'En direct' : 'Reconnexion...',
+        color: isSynced ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse',
+        dot: isSynced ? 'bg-emerald-500 animate-ping-slow' : 'bg-amber-500',
+        title: 'Connecté & synchronisé avec Supabase Cloud en temps réel'
+      };
+    }
+    if (dataSource === 'api') {
+      return {
+        label: 'Serveur local',
+        color: 'bg-blue-50 text-blue-700 border-blue-200',
+        dot: 'bg-blue-500',
+        title: 'Connecté au serveur local'
+      };
+    }
+    return {
+      label: 'Prêt',
+      color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      dot: 'bg-emerald-500',
+      title: 'Données enregistrées localement dans votre navigateur'
+    };
+  };
+
+  const status = getStatusInfo();
 
   return (
     <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -22,7 +50,6 @@ export function Navbar({
           
           {/* Brand: IUT Nantes & CDI */}
           <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0">
-            {/* Logo IUT Nantes + Book icon */}
             <div className="flex items-center space-x-1.5">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 flex items-center justify-center text-white shadow-md shadow-blue-600/20 shrink-0">
                 <BookOpen className="w-5 h-5 text-white" />
@@ -44,17 +71,13 @@ export function Navbar({
                   IUT de Nantes
                 </span>
                 
-                {/* Live Sync Status */}
+                {/* Live Sync Status Pill */}
                 <span 
-                  title={isSynced ? "Connecté & Synchronisé en direct" : "Reconnexion en cours..."}
-                  className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap ${
-                    isSynced 
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                      : 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
-                  }`}
+                  title={status.title}
+                  className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap border ${status.color}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isSynced ? 'bg-emerald-500 animate-ping-slow' : 'bg-amber-500'}`} />
-                  <span className="hidden md:inline">{isSynced ? 'En direct' : 'Reconnexion'}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                  <span className="hidden md:inline">{status.label}</span>
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 whitespace-nowrap hidden xl:block">
@@ -67,7 +90,7 @@ export function Navbar({
           <nav className="hidden md:flex items-center space-x-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 shrink-0">
             <button
               onClick={() => setActiveTab('calendar')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'calendar'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -78,7 +101,7 @@ export function Navbar({
             </button>
             <button
               onClick={() => setActiveTab('table')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'table'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -90,7 +113,7 @@ export function Navbar({
             </button>
             <button
               onClick={() => setActiveTab('stats')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'stats'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -124,7 +147,7 @@ export function Navbar({
                           : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
-                      <span className="text-sm">{m.avatar || '👤'}</span>
+                      <span className="text-sm">{m.avatar || '👨‍🎓'}</span>
                       <span className="truncate max-w-[65px] sm:max-w-none">{m.name}</span>
                       {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-0.5 hidden sm:inline-block" />}
                     </button>

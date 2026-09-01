@@ -15,7 +15,7 @@ export function useShiftsData() {
   const [settings, setSettings] = useState({});
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isSynced, setIsSynced] = useState(false);
+  const [isSynced, setIsSynced] = useState(true);
   const [dataSource, setDataSource] = useState('local'); // 'supabase', 'api', 'local'
 
   // Charger les moniteurs et paramètres
@@ -127,7 +127,7 @@ export function useShiftsData() {
       percentage: totalCdiHours > 0 ? Number(((m.totalHours / totalCdiHours) * 100).toFixed(1)) : 0
     }));
 
-    // Répartition de la fréquentation et des heures par jour de la semaine (Lundi à Vendredi/Samedi)
+    // Répartition de la fréquentation et des heures par jour de la semaine
     const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
     const dayDistribution = dayNames.map((name, index) => {
       const dayShifts = monthShifts.filter(s => new Date(s.date + 'T00:00:00').getDay() === index);
@@ -148,7 +148,7 @@ export function useShiftsData() {
       };
     }).filter(d => d.dayIndex >= 1 && d.dayIndex <= 6);
 
-    // Évolution quotidienne de l'affluence dans le mois (pour histogramme)
+    // Évolution quotidienne de l'affluence dans le mois
     const [y, m] = selectedMonth.split('-');
     const daysInMonth = new Date(Number(y), Number(m), 0).getDate();
     const dailyAttendance = [];
@@ -181,7 +181,7 @@ export function useShiftsData() {
     };
   }, [monitors, shifts, selectedMonth]);
 
-  // Initialisation et Temps Réel (Supabase ou SSE)
+  // Initialisation et Temps Réel (Supabase ou SSE ou Local)
   useEffect(() => {
     refreshAll();
 
@@ -199,26 +199,38 @@ export function useShiftsData() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
           fetchMonitorsAndSettings();
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setIsSynced(true);
+          }
+        });
 
       return () => {
         supabase.removeChannel(channel);
       };
     } else {
-      // Fallback SSE si Express est actif
-      try {
-        const eventSource = new EventSource('/api/events');
-        eventSource.onopen = () => setIsSynced(true);
-        eventSource.onmessage = (event) => {
-          try {
-            const payload = JSON.parse(event.data);
-            if (payload.type === 'SHIFTS_UPDATED') fetchShifts();
-            if (payload.type === 'MONITORS_UPDATED' || payload.type === 'SETTINGS_UPDATED') fetchMonitorsAndSettings();
-          } catch (e) {}
-        };
-        eventSource.onerror = () => setIsSynced(false);
-        return () => eventSource.close();
-      } catch (e) {
+      // Vérifier si on est en local avec un serveur Express actif
+      const isLocalhost = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+      if (isLocalhost) {
+        try {
+          const eventSource = new EventSource('/api/events');
+          eventSource.onopen = () => setIsSynced(true);
+          eventSource.onmessage = (event) => {
+            try {
+              const payload = JSON.parse(event.data);
+              if (payload.type === 'SHIFTS_UPDATED') fetchShifts();
+              if (payload.type === 'MONITORS_UPDATED' || payload.type === 'SETTINGS_UPDATED') fetchMonitorsAndSettings();
+            } catch (e) {}
+          };
+          eventSource.onerror = () => setIsSynced(true); // Pas d'erreur bloquante
+          return () => eventSource.close();
+        } catch (e) {
+          setIsSynced(true);
+        }
+      } else {
+        // En hébergement distant (GitHub Pages) sans Supabase configuré
         setIsSynced(true);
       }
     }
@@ -255,7 +267,6 @@ export function useShiftsData() {
     return res;
   };
 
-  // Mettre à jour rapidement la fréquentation d'un créneau
   const updateVisitorsCount = async (shiftId, count) => {
     return await updateShift(shiftId, { visitorsCount: Number(count) });
   };
