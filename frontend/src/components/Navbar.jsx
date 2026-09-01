@@ -6,16 +6,11 @@ export function Navbar({
   setActiveTab,
   onOpenAddModal,
   onOpenSettingsModal,
-  monitors = [],
-  activeUserMonitorId,
-  setActiveUserMonitorId,
   isSynced,
   dataSource = 'local',
   settings,
   conflictsCount = 0
 }) {
-  const activeMonitor = monitors.find(m => m.id === activeUserMonitorId) || monitors[0];
-
   const getStatusInfo = () => {
     if (dataSource === 'supabase') {
       return {
@@ -37,7 +32,7 @@ export function Navbar({
       label: 'Prêt',
       color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       dot: 'bg-emerald-500',
-      title: 'Données enregistrées localement dans votre navigateur'
+      title: 'Données enregistrées dans votre navigateur'
     };
   };
 
@@ -46,7 +41,7 @@ export function Navbar({
   return (
     <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
+        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
           
           {/* Brand: IUT Nantes & CDI */}
           <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0">
@@ -90,7 +85,7 @@ export function Navbar({
           <nav className="hidden md:flex items-center space-x-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80 shrink-0">
             <button
               onClick={() => setActiveTab('calendar')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'calendar'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -101,7 +96,7 @@ export function Navbar({
             </button>
             <button
               onClick={() => setActiveTab('table')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'table'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -113,57 +108,28 @@ export function Navbar({
             </button>
             <button
               onClick={() => setActiveTab('stats')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'stats'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              <span>Salaires</span>
-              <span className="hidden xl:inline">& Stats</span>
+              <span>Salaires & Stats</span>
             </button>
           </nav>
 
-          {/* Right Actions & User Switcher */}
-          <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+          {/* Right Actions */}
+          <div className="flex items-center space-x-2 shrink-0">
             
-            {/* Monitor Switcher (Noah / Lucas) */}
-            <div className="flex items-center bg-slate-100/90 rounded-2xl p-1 border border-slate-200/80 text-xs">
-              <span className="text-slate-400 font-semibold px-1.5 hidden 2xl:inline text-[11px]">
-                Je suis :
-              </span>
-              <div className="flex items-center space-x-1">
-                {monitors.map(m => {
-                  const isActive = m.id === activeUserMonitorId;
-                  return (
-                    <button
-                      key={m.id}
-                      onClick={() => setActiveUserMonitorId(m.id)}
-                      title={`Connecté en tant que ${m.name}`}
-                      className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                        isActive 
-                          ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 scale-[1.02]' 
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <span className="text-sm">{m.avatar || '👨‍🎓'}</span>
-                      <span className="truncate max-w-[65px] sm:max-w-none">{m.name}</span>
-                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-0.5 hidden sm:inline-block" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* Quick Add Button */}
             <button
               onClick={onOpenAddModal}
-              className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs shadow-blue-500/30 transition-all cursor-pointer whitespace-nowrap"
+              className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs shadow-blue-500/30 transition-all cursor-pointer whitespace-nowrap"
             >
               <PlusCircle className="w-4 h-4 shrink-0" />
-              <span className="hidden xl:inline">Ajouter des heures</span>
-              <span className="xl:hidden">Ajouter</span>
+              <span className="hidden sm:inline">Ajouter des heures</span>
+              <span className="sm:hidden">Ajouter</span>
             </button>
 
             {/* Settings Button */}
