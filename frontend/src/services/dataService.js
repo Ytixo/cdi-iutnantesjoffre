@@ -4,28 +4,9 @@ import { normalizeName } from '../utils/authUtils';
 const LOCAL_STORAGE_KEY_DATA = 'cdi_local_data_v2';
 const LOCAL_STORAGE_KEY_USERS = 'cdi_auth_users_v3';
 
+// Seuls les moniteurs étudiants qui effectuent des permanences sont dans monitors
 const DEFAULT_FALLBACK_DATA = {
   monitors: [
-    {
-      id: 'user-virginie',
-      name: 'Virginie',
-      role: 'manager',
-      color: '#DB2777',
-      bgLight: '#FDF2F8',
-      border: '#F472B6',
-      hourlyRate: 9.55,
-      avatar: '👩‍🏫'
-    },
-    {
-      id: 'user-kristell',
-      name: 'Kristell',
-      role: 'manager',
-      color: '#D97706',
-      bgLight: '#FFFBEB',
-      border: '#FBBF24',
-      hourlyRate: 9.55,
-      avatar: '👩‍🏫'
-    },
     {
       id: 'moniteur-1',
       name: 'Noah',
@@ -98,7 +79,16 @@ function getLocalData() {
     const data = JSON.parse(raw);
     let changed = false;
 
-    // S'assurer que les 4 profils de base sont présents dans monitors
+    // Retirer les manageuses (Virginie & Kristell) de la liste des moniteurs pour ne laisser que les vrais moniteurs de permanence
+    if (data.monitors) {
+      const filtered = data.monitors.filter(m => m.role !== 'manager' && !['user-virginie', 'user-kristell'].includes(m.id));
+      if (filtered.length !== data.monitors.length) {
+        data.monitors = filtered;
+        changed = true;
+      }
+    }
+
+    // S'assurer que Noah et Lucas sont bien présents
     DEFAULT_FALLBACK_DATA.monitors.forEach(baseMon => {
       const norm = normalizeName(baseMon.name);
       const exists = (data.monitors || []).some(m => normalizeName(m.name) === norm);
@@ -108,17 +98,6 @@ function getLocalData() {
         changed = true;
       }
     });
-
-    // Mettre à jour l'orthographe de Kristell si encore Christelle
-    if (data.monitors) {
-      data.monitors = data.monitors.map(m => {
-        if (normalizeName(m.name) === 'christelle') {
-          changed = true;
-          return { ...m, name: 'Kristell' };
-        }
-        return m;
-      });
-    }
 
     if (changed) {
       localStorage.setItem(LOCAL_STORAGE_KEY_DATA, JSON.stringify(data));
@@ -172,6 +151,7 @@ function mapMonitorFromSupabase(row) {
   return {
     id: row.id,
     name: row.name,
+    role: row.role || 'monitor',
     color: row.color,
     bgLight: row.bg_light || '#EFF6FF',
     border: row.border || '#93C5FD',
@@ -181,7 +161,7 @@ function mapMonitorFromSupabase(row) {
 }
 
 export const dataService = {
-  // 1. Récupérer Moniteurs & Paramètres
+  // 1. Récupérer Moniteurs (permanences) & Paramètres
   async getMonitorsAndSettings() {
     const supabase = getSupabase();
     if (supabase) {
@@ -192,11 +172,13 @@ export const dataService = {
         ]);
 
         if (!monitorsRes.error && monitorsRes.data && monitorsRes.data.length > 0) {
-          const monitors = monitorsRes.data.map(mapMonitorFromSupabase);
+          // Filtrer pour ne garder que les moniteurs de permanence
+          const monitors = monitorsRes.data
+            .filter(m => !['user-virginie', 'user-kristell'].includes(m.id))
+            .map(mapMonitorFromSupabase);
           const settings = settingsRes.data?.value || DEFAULT_FALLBACK_DATA.settings;
           return { monitors, settings, source: 'supabase' };
         } else if (!monitorsRes.error && (!monitorsRes.data || monitorsRes.data.length === 0)) {
-          // Auto-seed table monitors dans Supabase
           for (const m of DEFAULT_FALLBACK_DATA.monitors) {
             await supabase.from('monitors').insert({
               id: m.id,
@@ -220,7 +202,8 @@ export const dataService = {
       const res = await fetch('/api/monitors');
       if (res.ok) {
         const data = await res.json();
-        return { monitors: data.monitors, settings: data.settings, source: 'api' };
+        const monList = (data.monitors || []).filter(m => !['user-virginie', 'user-kristell'].includes(m.id));
+        return { monitors: monList, settings: data.settings, source: 'api' };
       }
     } catch (e) {}
 
@@ -378,7 +361,7 @@ export const dataService = {
     return { success: true };
   },
 
-  // 6. Mettre à jour un moniteur (taux, couleur, nom, avatar)
+  // 6. Mettre à jour un membre
   async updateMonitor(id, monitorData) {
     const norm = monitorData.name ? normalizeName(monitorData.name) : undefined;
     const supabase = getSupabase();
@@ -421,23 +404,22 @@ export const dataService = {
     if (idx !== -1) {
       local.monitors[idx] = { ...local.monitors[idx], ...monitorData };
       saveLocalData(local);
-
-      // Sync auth users
-      try {
-        const rawUsers = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
-        if (rawUsers) {
-          const usersList = JSON.parse(rawUsers);
-          const uIdx = usersList.findIndex(u => u.id === id);
-          if (uIdx !== -1) {
-            usersList[uIdx] = { ...usersList[uIdx], ...monitorData };
-            localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(usersList));
-          }
-        }
-      } catch (e) {}
-
-      return { success: true, monitor: local.monitors[idx] };
     }
-    return { success: false, error: 'Moniteur non trouvé' };
+
+    // Sync auth users
+    try {
+      const rawUsers = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
+      if (rawUsers) {
+        const usersList = JSON.parse(rawUsers);
+        const uIdx = usersList.findIndex(u => u.id === id);
+        if (uIdx !== -1) {
+          usersList[uIdx] = { ...usersList[uIdx], ...monitorData };
+          localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(usersList));
+        }
+      }
+    } catch (e) {}
+
+    return { success: true, monitor: monitorData };
   },
 
   // 7. Mettre à jour les paramètres généraux
@@ -473,51 +455,47 @@ export const dataService = {
   },
 
   // 8. Ajouter un moniteur ou une manageuse (Manageuses & Noah)
-  async addMonitor(monitorData) {
-    const supabase = getSupabase();
-    const newId = monitorData.role === 'manager' ? `user-${Date.now()}` : `moniteur-${Date.now()}`;
-    const norm = normalizeName(monitorData.name);
+  async addMonitor(memberData) {
+    const isManagerRole = memberData.role === 'manager';
+    const newId = isManagerRole ? `user-${Date.now()}` : `moniteur-${Date.now()}`;
+    const norm = normalizeName(memberData.name);
 
+    const supabase = getSupabase();
     if (supabase) {
       try {
         const userRow = {
           id: newId,
-          name: monitorData.name.trim(),
+          name: memberData.name.trim(),
           normalized_name: norm,
-          role: monitorData.role === 'manager' ? 'manager' : 'monitor',
-          avatar: monitorData.avatar || '👨‍🎓',
-          color: monitorData.color || '#2563EB',
-          hourly_rate: Number(monitorData.hourlyRate) || 9.55,
+          role: isManagerRole ? 'manager' : 'monitor',
+          avatar: memberData.avatar || (isManagerRole ? '👩‍🏫' : '👨‍🎓'),
+          color: memberData.color || '#2563EB',
+          hourly_rate: Number(memberData.hourlyRate) || 9.55,
           password_hash: null,
           created_at: new Date().toISOString()
         };
 
-        const monitorRow = {
-          id: newId,
-          name: monitorData.name.trim(),
-          color: monitorData.color || '#2563EB',
-          bg_light: '#EFF6FF',
-          border: '#93C5FD',
-          hourly_rate: Number(monitorData.hourlyRate) || 9.55,
-          avatar: monitorData.avatar || '👨‍🎓'
-        };
+        await supabase.from('users').insert(userRow);
 
-        const [userRes, monRes] = await Promise.all([
-          supabase.from('users').insert(userRow).select().maybeSingle(),
-          supabase.from('monitors').insert(monitorRow).select().maybeSingle()
-        ]);
-
-        if (!userRes.error && !monRes.error) {
-          const created = mapMonitorFromSupabase(monRes.data || monitorRow);
-          return {
-            success: true,
-            monitor: created,
-            user: userRow,
-            message: `Le profil « ${monitorData.name.trim()} » a été ajouté avec succès !`
+        // N'ajouter dans la table monitors que si c'est un moniteur
+        if (!isManagerRole) {
+          const monitorRow = {
+            id: newId,
+            name: memberData.name.trim(),
+            color: memberData.color || '#2563EB',
+            bg_light: '#EFF6FF',
+            border: '#93C5FD',
+            hourly_rate: Number(memberData.hourlyRate) || 9.55,
+            avatar: memberData.avatar || '👨‍🎓'
           };
-        } else if (userRes.error || monRes.error) {
-          console.error('Erreur insertion Supabase:', userRes.error, monRes.error);
+          await supabase.from('monitors').insert(monitorRow);
         }
+
+        return {
+          success: true,
+          member: userRow,
+          message: `Le profil « ${memberData.name.trim()} » a été ajouté avec succès !`
+        };
       } catch (err) {
         console.error('Erreur Supabase addMonitor:', err);
       }
@@ -528,66 +506,52 @@ export const dataService = {
       const res = await fetch('/api/auth/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...monitorData, role: monitorData.role || 'monitor' })
+        body: JSON.stringify(memberData)
       });
       if (res.ok) {
         const data = await res.json();
-        const mon = {
-          id: data.user.id,
-          name: data.user.name,
-          role: data.user.role,
-          color: data.user.color,
-          bgLight: '#EFF6FF',
-          border: '#93C5FD',
-          hourlyRate: data.user.hourlyRate,
-          avatar: data.user.avatar
-        };
-        return { success: true, monitor: mon, user: data.user, message: data.message };
+        return { success: true, member: data.user, message: data.message };
       }
       const err = await res.json();
       return { success: false, error: err.error || 'Erreur lors de l\'ajout' };
     } catch (e) {}
 
-    // Fallback LocalStorage (sauvegarder dans cdi_local_data_v2 ET cdi_auth_users_v3)
-    const local = getLocalData();
-    const newMon = {
+    // Fallback LocalStorage
+    const newMember = {
       id: newId,
-      name: monitorData.name.trim(),
-      role: monitorData.role || 'monitor',
-      color: monitorData.color || '#2563EB',
-      bgLight: '#EFF6FF',
-      border: '#93C5FD',
-      hourlyRate: Number(monitorData.hourlyRate) || 9.55,
-      avatar: monitorData.avatar || '👨‍🎓'
+      name: memberData.name.trim(),
+      role: isManagerRole ? 'manager' : 'monitor',
+      canManage: isManagerRole,
+      color: memberData.color || '#2563EB',
+      bgLight: isManagerRole ? '#FDF2F8' : '#EFF6FF',
+      border: isManagerRole ? '#F472B6' : '#93C5FD',
+      hourlyRate: Number(memberData.hourlyRate) || 9.55,
+      avatar: memberData.avatar || (isManagerRole ? '👩‍🏫' : '👨‍🎓'),
+      passwordHash: null,
+      createdAt: new Date().toISOString()
     };
 
-    local.monitors = [...(local.monitors || []), newMon];
-    saveLocalData(local);
+    // Si c'est un moniteur, on l'ajoute à cdi_local_data_v2 (planning)
+    if (!isManagerRole) {
+      const local = getLocalData();
+      local.monitors = [...(local.monitors || []), newMember];
+      saveLocalData(local);
+    }
 
-    // Sync authService / local users
+    // Ajouter à cdi_auth_users_v3 (comptes & login)
     try {
       const rawUsers = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
       const usersList = rawUsers ? JSON.parse(rawUsers) : [];
       if (!usersList.some(u => normalizeName(u.name) === norm)) {
-        usersList.push({
-          id: newId,
-          name: monitorData.name.trim(),
-          role: monitorData.role === 'manager' ? 'manager' : 'monitor',
-          canManage: monitorData.role === 'manager',
-          avatar: newMon.avatar,
-          color: newMon.color,
-          hourlyRate: newMon.hourlyRate,
-          passwordHash: null,
-          createdAt: new Date().toISOString()
-        });
+        usersList.push(newMember);
         localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(usersList));
       }
     } catch (e) {}
 
-    return { success: true, monitor: newMon, message: `Le profil pour « ${newMon.name} » a été créé avec succès.` };
+    return { success: true, member: newMember, message: `Le profil pour « ${newMember.name} » a été créé avec succès.` };
   },
 
-  // 9. Supprimer un moniteur ou membre
+  // 9. Supprimer un membre
   async deleteMonitor(id) {
     const supabase = getSupabase();
     if (supabase) {

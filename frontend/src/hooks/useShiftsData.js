@@ -19,6 +19,7 @@ export function useShiftsData() {
   });
 
   const [monitors, setMonitors] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [settings, setSettings] = useState({});
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,11 +39,15 @@ export function useShiftsData() {
     setCurrentUserState(null);
   }, []);
 
-  // Charger les moniteurs et paramètres
+  // Charger les moniteurs, l'équipe complète et les paramètres
   const fetchMonitorsAndSettings = useCallback(async () => {
     try {
-      const { monitors: mList, settings: sData, source } = await dataService.getMonitorsAndSettings();
+      const [{ monitors: mList, settings: sData, source }, uList] = await Promise.all([
+        dataService.getMonitorsAndSettings(),
+        authService.getUsers()
+      ]);
       setMonitors(mList || []);
+      setTeamMembers(uList || []);
       setSettings(sData || {});
       setDataSource(source);
       if (mList && mList.length > 0 && !activeUserMonitorId) {
@@ -282,13 +287,19 @@ export function useShiftsData() {
     return res;
   };
 
-  const addMonitor = async (monitorData) => {
-    const res = await dataService.addMonitor(monitorData);
-    if (res && res.monitor) {
-      setMonitors(prev => {
-        const filtered = prev.filter(m => m.id !== res.monitor.id);
-        return [...filtered, res.monitor];
+  const addMonitor = async (memberData) => {
+    const res = await dataService.addMonitor(memberData);
+    if (res && res.member) {
+      setTeamMembers(prev => {
+        const filtered = prev.filter(u => u.id !== res.member.id);
+        return [...filtered, res.member];
       });
+      if (res.member.role !== 'manager') {
+        setMonitors(prev => {
+          const filtered = prev.filter(m => m.id !== res.member.id);
+          return [...filtered, res.member];
+        });
+      }
     }
     await refreshAll();
     return res;
@@ -296,6 +307,7 @@ export function useShiftsData() {
 
   const deleteMonitor = async (id) => {
     const res = await dataService.deleteMonitor(id);
+    setTeamMembers(prev => prev.filter(u => u.id !== id));
     setMonitors(prev => prev.filter(m => m.id !== id));
     await refreshAll();
     return res;
@@ -322,6 +334,7 @@ export function useShiftsData() {
     setCurrentUser,
     logout,
     monitors,
+    teamMembers,
     settings,
     shifts,
     conflicts,

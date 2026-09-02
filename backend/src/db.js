@@ -22,8 +22,6 @@ export const INITIAL_USERS = [
     canManage: true,
     avatar: '👩‍🏫',
     color: '#DB2777',
-    bgLight: '#FDF2F8',
-    border: '#F472B6',
     hourlyRate: 9.55,
     passwordHash: null,
     createdAt: '2026-09-01T00:00:00.000Z'
@@ -36,8 +34,6 @@ export const INITIAL_USERS = [
     canManage: true,
     avatar: '👩‍🏫',
     color: '#D97706',
-    bgLight: '#FFFBEB',
-    border: '#FBBF24',
     hourlyRate: 9.55,
     passwordHash: null,
     createdAt: '2026-09-01T00:00:00.000Z'
@@ -73,26 +69,6 @@ export const INITIAL_USERS = [
 ];
 
 export const INITIAL_MONITORS = [
-  {
-    id: 'user-virginie',
-    name: 'Virginie',
-    role: 'manager',
-    color: '#DB2777',
-    bgLight: '#FDF2F8',
-    border: '#F472B6',
-    hourlyRate: 9.55,
-    avatar: '👩‍🏫'
-  },
-  {
-    id: 'user-kristell',
-    name: 'Kristell',
-    role: 'manager',
-    color: '#D97706',
-    bgLight: '#FFFBEB',
-    border: '#FBBF24',
-    hourlyRate: 9.55,
-    avatar: '👩‍🏫'
-  },
   {
     id: 'moniteur-1',
     name: 'Noah',
@@ -174,7 +150,14 @@ export function readDb() {
       data.monitors = [...INITIAL_MONITORS];
       changed = true;
     } else {
-      // S'assurer que Virginie et Kristell sont aussi dans monitors pour la visibilité d'équipe
+      // Retirer les manageuses de la liste des moniteurs de permanence
+      const filteredMonitors = data.monitors.filter(m => m.role !== 'manager' && !['user-virginie', 'user-kristell'].includes(m.id));
+      if (filteredMonitors.length !== data.monitors.length) {
+        data.monitors = filteredMonitors;
+        changed = true;
+      }
+
+      // S'assurer que Noah et Lucas sont bien dans monitors
       INITIAL_MONITORS.forEach(baseMon => {
         const norm = normalizeName(baseMon.name);
         const exists = data.monitors.some(m => normalizeName(m.name) === norm);

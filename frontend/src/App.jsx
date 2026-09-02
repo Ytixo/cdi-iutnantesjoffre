@@ -19,6 +19,7 @@ export function App() {
     setCurrentUser,
     logout,
     monitors,
+    teamMembers,
     settings,
     shifts,
     conflicts,
@@ -241,6 +242,7 @@ export function App() {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         currentUser={currentUser}
+        teamMembers={teamMembers}
         monitors={monitors}
         settings={settings}
         onUpdateMonitor={updateMonitor}
