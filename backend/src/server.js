@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { authRouter } from './routes/auth.js';
 import { shiftsRouter } from './routes/shifts.js';
 import { monitorsRouter } from './routes/monitors.js';
 import { statsRouter } from './routes/stats.js';
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 // Routes API
+app.use('/api/auth', authRouter);
 app.use('/api/shifts', shiftsRouter);
 app.use('/api/monitors', monitorsRouter);
 app.use('/api/stats', statsRouter);

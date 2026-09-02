@@ -398,5 +398,63 @@ export const dataService = {
     local.settings = { ...local.settings, ...settingsData };
     saveLocalData(local);
     return { success: true, settings: local.settings };
+  },
+
+  // 8. Ajouter un moniteur (Manageuses)
+  async addMonitor(monitorData) {
+    try {
+      const res = await fetch('/api/auth/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...monitorData, role: 'monitor' })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      const err = await res.json();
+      return { success: false, error: err.error || 'Erreur lors de l\'ajout' };
+    } catch (e) {}
+
+    const local = getLocalData();
+    const newId = `moniteur-${Date.now()}`;
+    const newMon = {
+      id: newId,
+      name: monitorData.name,
+      color: monitorData.color || '#2563EB',
+      bgLight: '#EFF6FF',
+      border: '#93C5FD',
+      hourlyRate: Number(monitorData.hourlyRate) || 9.55,
+      avatar: monitorData.avatar || '👨‍🎓'
+    };
+
+    local.monitors = [...(local.monitors || []), newMon];
+    saveLocalData(local);
+    return { success: true, monitor: newMon };
+  },
+
+  // 9. Supprimer un moniteur (Manageuses)
+  async deleteMonitor(id) {
+    try {
+      const res = await fetch(`/api/auth/users/${id}`, { method: 'DELETE' });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
+    const local = getLocalData();
+    local.monitors = (local.monitors || []).filter(m => m.id !== id);
+    saveLocalData(local);
+    return { success: true };
+  },
+
+  // 10. Réinitialiser le mot de passe d'un utilisateur
+  async resetPassword(id) {
+    try {
+      const res = await fetch(`/api/auth/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetPassword: true })
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+    return { success: true };
   }
 };

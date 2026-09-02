@@ -1,4 +1,58 @@
 {
+  "users": [
+    {
+      "id": "user-virginie",
+      "name": "Virginie",
+      "normalizedName": "virginie",
+      "role": "manager",
+      "canManage": true,
+      "avatar": "👩‍🏫",
+      "color": "#DB2777",
+      "hourlyRate": 9.55,
+      "passwordHash": null,
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    },
+    {
+      "id": "user-kristell",
+      "name": "Kristell",
+      "normalizedName": "kristell",
+      "role": "manager",
+      "canManage": true,
+      "avatar": "👩‍🏫",
+      "color": "#D97706",
+      "hourlyRate": 9.55,
+      "passwordHash": null,
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    },
+    {
+      "id": "moniteur-1",
+      "name": "Noah",
+      "normalizedName": "noah",
+      "role": "monitor",
+      "canManage": true,
+      "avatar": "👨‍🎓",
+      "color": "#7C3AED",
+      "bgLight": "#EFF6FF",
+      "border": "#93C5FD",
+      "hourlyRate": 9.55,
+      "passwordHash": null,
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    },
+    {
+      "id": "moniteur-2",
+      "name": "Lucas",
+      "normalizedName": "lucas",
+      "role": "monitor",
+      "canManage": false,
+      "avatar": "👨‍🎓",
+      "color": "#475569",
+      "bgLight": "#ECFDF5",
+      "border": "#6EE7B7",
+      "hourlyRate": 9.55,
+      "passwordHash": null,
+      "createdAt": "2026-09-01T00:00:00.000Z"
+    }
+  ],
   "monitors": [
     {
       "id": "moniteur-1",
@@ -26,50 +80,5 @@
     "allowOverlaps": false,
     "currency": "€"
   },
-  "shifts": [
-    {
-      "id": "shift-demo-1",
-      "monitorId": "moniteur-1",
-      "date": "2026-09-01",
-      "startTime": "12:30",
-      "endTime": "13:30",
-      "durationHours": 1,
-      "note": "Permanence accueil CDI",
-      "createdAt": "2026-08-31T20:00:00.000Z",
-      "updatedAt": "2026-09-01T16:36:20.512Z"
-    },
-    {
-      "id": "shift-demo-2",
-      "monitorId": "moniteur-1",
-      "date": "2026-09-02",
-      "startTime": "12:30",
-      "endTime": "13:30",
-      "durationHours": 1,
-      "note": "Permanence accueil CDI",
-      "createdAt": "2026-08-31T20:00:00.000Z",
-      "updatedAt": "2026-08-31T19:56:36.506Z"
-    },
-    {
-      "id": "shift-demo-3",
-      "monitorId": "moniteur-2",
-      "date": "2026-09-03",
-      "startTime": "12:30",
-      "endTime": "13:30",
-      "durationHours": 1,
-      "note": "Permanence accueil CDI",
-      "createdAt": "2026-08-31T20:00:00.000Z",
-      "updatedAt": "2026-08-31T19:56:38.148Z"
-    },
-    {
-      "id": "shift-demo-4",
-      "monitorId": "moniteur-2",
-      "date": "2026-09-04",
-      "startTime": "12:30",
-      "endTime": "13:30",
-      "durationHours": 1,
-      "note": "Permanence accueil CDI",
-      "createdAt": "2026-08-31T20:00:00.000Z",
-      "updatedAt": "2026-08-31T19:56:40.437Z"
-    }
-  ]
+  "shifts": []
 }

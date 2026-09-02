@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useShiftsData } from './hooks/useShiftsData';
+import { LoginView } from './components/LoginView';
 import { Navbar } from './components/Navbar';
 import { MonthSelector } from './components/MonthSelector';
 import { CalendarView } from './components/CalendarView';
@@ -14,6 +15,9 @@ import { Loader2 } from 'lucide-react';
 
 export function App() {
   const {
+    currentUser,
+    setCurrentUser,
+    logout,
     monitors,
     settings,
     shifts,
@@ -32,6 +36,9 @@ export function App() {
     updateShift,
     deleteShift,
     updateMonitor,
+    addMonitor,
+    deleteMonitor,
+    resetPassword,
     updateSettings,
     updateVisitorsCount
   } = useShiftsData();
@@ -42,6 +49,11 @@ export function App() {
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState(null);
   const [attendanceTarget, setAttendanceTarget] = useState({ shift: null, monitor: null });
+
+  // Si l'utilisateur n'est pas connecté, afficher l'écran d'authentification
+  if (!currentUser) {
+    return <LoginView onLoginSuccess={setCurrentUser} />;
+  }
 
   // Ouvrir la modale d'édition de créneau
   const handleSelectShift = (shift) => {
@@ -55,7 +67,7 @@ export function App() {
       date: dateStr,
       startTime,
       endTime,
-      monitorId: activeUserMonitorId,
+      monitorId: currentUser.role === 'monitor' ? currentUser.id : activeUserMonitorId,
       note: 'Permanence accueil CDI',
       visitorsCount: 0
     });
@@ -86,6 +98,8 @@ export function App() {
       
       {/* Navbar */}
       <Navbar
+        currentUser={currentUser}
+        onLogout={logout}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAddModal={() => {
@@ -206,7 +220,7 @@ export function App() {
         onDelete={deleteShift}
         initialShift={editingShift}
         monitors={monitors}
-        activeUserMonitorId={activeUserMonitorId}
+        activeUserMonitorId={currentUser.role === 'monitor' ? currentUser.id : activeUserMonitorId}
         existingShifts={shifts}
       />
 
@@ -226,9 +240,13 @@ export function App() {
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
+        currentUser={currentUser}
         monitors={monitors}
         settings={settings}
         onUpdateMonitor={updateMonitor}
+        onAddMonitor={addMonitor}
+        onDeleteMonitor={deleteMonitor}
+        onResetPassword={resetPassword}
         onUpdateSettings={updateSettings}
       />
 

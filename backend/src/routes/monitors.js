@@ -35,8 +35,23 @@ monitorsRouter.put('/:id', (req, res) => {
   };
 
   db.monitors[index] = updatedMonitor;
+
+  // Synchroniser avec db.users
+  const userIdx = (db.users || []).findIndex(u => u.id === id);
+  if (userIdx !== -1) {
+    db.users[userIdx] = {
+      ...db.users[userIdx],
+      ...(name !== undefined && { name }),
+      ...(hourlyRate !== undefined && { hourlyRate: Number(hourlyRate) }),
+      ...(color !== undefined && { color }),
+      ...(avatar !== undefined && { avatar }),
+      updatedAt: new Date().toISOString()
+    };
+  }
+
   writeDb(db);
   broadcastUpdate('MONITORS_UPDATED', { monitor: updatedMonitor });
+  broadcastUpdate('USERS_UPDATED', { users: db.users });
 
   res.json({ success: true, monitor: updatedMonitor });
 });

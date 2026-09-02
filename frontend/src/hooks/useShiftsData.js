@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { dataService } from '../services/dataService';
+import { authService } from '../services/authService';
 import { getSupabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { calculateDuration, DAYS_FR, formatHours } from '../utils/timeUtils';
 
@@ -7,9 +8,15 @@ export function useShiftsData() {
   const now = new Date();
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+  // État utilisateur connecté
+  const [currentUser, setCurrentUserState] = useState(() => authService.getCurrentUser());
+
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
   const [selectedMonitorFilter, setSelectedMonitorFilter] = useState('ALL');
-  const [activeUserMonitorId, setActiveUserMonitorId] = useState('moniteur-1');
+  const [activeUserMonitorId, setActiveUserMonitorId] = useState(() => {
+    const user = authService.getCurrentUser();
+    return user && user.role === 'monitor' ? user.id : 'moniteur-1';
+  });
 
   const [monitors, setMonitors] = useState([]);
   const [settings, setSettings] = useState({});
@@ -17,6 +24,19 @@ export function useShiftsData() {
   const [loading, setLoading] = useState(true);
   const [isSynced, setIsSynced] = useState(true);
   const [dataSource, setDataSource] = useState('local'); // 'supabase', 'api', 'local'
+
+  const setCurrentUser = useCallback((user) => {
+    authService.setCurrentUser(user);
+    setCurrentUserState(user);
+    if (user && user.role === 'monitor') {
+      setActiveUserMonitorId(user.id);
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    authService.logout();
+    setCurrentUserState(null);
+  }, []);
 
   // Charger les moniteurs et paramètres
   const fetchMonitorsAndSettings = useCallback(async () => {
@@ -221,16 +241,17 @@ export function useShiftsData() {
             try {
               const payload = JSON.parse(event.data);
               if (payload.type === 'SHIFTS_UPDATED') fetchShifts();
-              if (payload.type === 'MONITORS_UPDATED' || payload.type === 'SETTINGS_UPDATED') fetchMonitorsAndSettings();
+              if (payload.type === 'MONITORS_UPDATED' || payload.type === 'SETTINGS_UPDATED' || payload.type === 'USERS_UPDATED') {
+                fetchMonitorsAndSettings();
+              }
             } catch (e) {}
           };
-          eventSource.onerror = () => setIsSynced(true); // Pas d'erreur bloquante
+          eventSource.onerror = () => setIsSynced(true);
           return () => eventSource.close();
         } catch (e) {
           setIsSynced(true);
         }
       } else {
-        // En hébergement distant (GitHub Pages) sans Supabase configuré
         setIsSynced(true);
       }
     }
@@ -261,6 +282,24 @@ export function useShiftsData() {
     return res;
   };
 
+  const addMonitor = async (monitorData) => {
+    const res = await dataService.addMonitor(monitorData);
+    await refreshAll();
+    return res;
+  };
+
+  const deleteMonitor = async (id) => {
+    const res = await dataService.deleteMonitor(id);
+    await refreshAll();
+    return res;
+  };
+
+  const resetPassword = async (id) => {
+    const res = await dataService.resetPassword(id);
+    await refreshAll();
+    return res;
+  };
+
   const updateSettings = async (settingsData) => {
     const res = await dataService.updateSettings(settingsData);
     await refreshAll();
@@ -272,6 +311,9 @@ export function useShiftsData() {
   };
 
   return {
+    currentUser,
+    setCurrentUser,
+    logout,
     monitors,
     settings,
     shifts,
@@ -290,6 +332,9 @@ export function useShiftsData() {
     updateShift,
     deleteShift,
     updateMonitor,
+    addMonitor,
+    deleteMonitor,
+    resetPassword,
     updateSettings,
     updateVisitorsCount,
     refreshAll

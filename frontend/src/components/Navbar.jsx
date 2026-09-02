@@ -1,7 +1,9 @@
 import React from 'react';
-import { BookOpen, PlusCircle, Settings, Calendar, Table, BarChart3 } from 'lucide-react';
+import { BookOpen, PlusCircle, Settings, Calendar, Table, BarChart3, LogOut, ShieldCheck, UserCheck } from 'lucide-react';
 
 export function Navbar({
+  currentUser,
+  onLogout,
   activeTab,
   setActiveTab,
   onOpenAddModal,
@@ -11,6 +13,9 @@ export function Navbar({
   settings,
   conflictsCount = 0
 }) {
+  const canManage = currentUser?.role === 'manager' || currentUser?.canManage || currentUser?.name === 'Noah';
+  const isManager = currentUser?.role === 'manager';
+
   const getStatusInfo = () => {
     if (dataSource === 'supabase') {
       return {
@@ -41,20 +46,14 @@ export function Navbar({
   return (
     <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
+        <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
           
           {/* Brand: IUT Nantes & CDI */}
-          <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0">
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
             <div className="flex items-center space-x-1.5">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 flex items-center justify-center text-white shadow-md shadow-blue-600/20 shrink-0">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
-              <img
-                src="/iut-nantes-logo.png"
-                alt="IUT Nantes"
-                className="h-7 sm:h-8 w-auto object-contain hidden xs:block"
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
             </div>
 
             <div className="flex flex-col">
@@ -72,7 +71,7 @@ export function Navbar({
                   className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap border ${status.color}`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                  <span className="hidden md:inline">{status.label}</span>
+                  <span className="hidden lg:inline">{status.label}</span>
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 whitespace-nowrap hidden xl:block">
@@ -119,13 +118,13 @@ export function Navbar({
             </button>
           </nav>
 
-          {/* Right Actions */}
+          {/* Right Actions & User Profile */}
           <div className="flex items-center space-x-2 shrink-0">
             
             {/* Quick Add Button */}
             <button
               onClick={onOpenAddModal}
-              className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs shadow-blue-500/30 transition-all cursor-pointer whitespace-nowrap"
+              className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs shadow-blue-500/30 transition-all cursor-pointer whitespace-nowrap"
             >
               <PlusCircle className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Ajouter des heures</span>
@@ -135,11 +134,43 @@ export function Navbar({
             {/* Settings Button */}
             <button
               onClick={onOpenSettingsModal}
-              title="Paramètres (taux horaire, profils)"
+              title={canManage ? "Gestion de l'équipe et paramètres" : "Paramètres du CDI"}
               className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors border border-slate-200/80 shrink-0 cursor-pointer"
             >
               <Settings className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </button>
+
+            {/* User Profile Badge & Logout */}
+            {currentUser && (
+              <div className="flex items-center space-x-1.5 pl-1 sm:pl-2 border-l border-slate-200">
+                <div 
+                  onClick={onOpenSettingsModal}
+                  title={`Connecté en tant que ${currentUser.name} (${isManager ? 'Manageuse' : 'Moniteur'})`}
+                  className="flex items-center space-x-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 py-1 px-2 rounded-xl cursor-pointer transition-colors"
+                >
+                  <span className="text-base sm:text-lg">{currentUser.avatar || '👨‍🎓'}</span>
+                  <div className="flex flex-col text-left hidden sm:block">
+                    <span className="text-xs font-bold text-slate-800 leading-tight">
+                      {currentUser.name}
+                    </span>
+                    <span className={`text-[10px] font-extrabold leading-tight ${
+                      isManager ? 'text-pink-600' : 'text-blue-600'
+                    }`}>
+                      {isManager ? '👑 Manageuse' : '🎓 Moniteur'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Logout button */}
+                <button
+                  onClick={onLogout}
+                  title="Se déconnecter"
+                  className="p-1.5 sm:p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-200 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
           </div>
         </div>
