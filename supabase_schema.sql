@@ -67,6 +67,8 @@ ON CONFLICT (id) DO UPDATE SET
 
 INSERT INTO public.monitors (id, name, color, bg_light, border, hourly_rate, avatar)
 VALUES
+  ('user-virginie', 'Virginie', '#DB2777', '#FDF2F8', '#F472B6', 9.55, '👩‍🏫'),
+  ('user-kristell', 'Kristell', '#D97706', '#FFFBEB', '#FBBF24', 9.55, '👩‍🏫'),
   ('moniteur-1', 'Noah', '#7C3AED', '#EFF6FF', '#93C5FD', 9.55, '👨‍🎓'),
   ('moniteur-2', 'Lucas', '#475569', '#ECFDF5', '#6EE7B7', 9.55, '👨‍🎓')
 ON CONFLICT (id) DO UPDATE SET

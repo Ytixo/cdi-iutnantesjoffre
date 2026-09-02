@@ -284,12 +284,19 @@ export function useShiftsData() {
 
   const addMonitor = async (monitorData) => {
     const res = await dataService.addMonitor(monitorData);
+    if (res && res.monitor) {
+      setMonitors(prev => {
+        const filtered = prev.filter(m => m.id !== res.monitor.id);
+        return [...filtered, res.monitor];
+      });
+    }
     await refreshAll();
     return res;
   };
 
   const deleteMonitor = async (id) => {
     const res = await dataService.deleteMonitor(id);
+    setMonitors(prev => prev.filter(m => m.id !== id));
     await refreshAll();
     return res;
   };

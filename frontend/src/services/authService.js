@@ -499,6 +499,28 @@ export const authService = {
     users.push(newUser);
     saveLocalUsers(users);
 
+    // Synchroniser avec les données locales de moniteurs
+    try {
+      const rawLocal = localStorage.getItem('cdi_local_data_v2');
+      if (rawLocal) {
+        const localData = JSON.parse(rawLocal);
+        localData.monitors = localData.monitors || [];
+        if (!localData.monitors.some(m => normalizeName(m.name) === norm)) {
+          localData.monitors.push({
+            id: newUser.id,
+            name: newUser.name,
+            role: newUser.role,
+            color: newUser.color,
+            bgLight: '#EFF6FF',
+            border: '#93C5FD',
+            hourlyRate: newUser.hourlyRate,
+            avatar: newUser.avatar
+          });
+          localStorage.setItem('cdi_local_data_v2', JSON.stringify(localData));
+        }
+      }
+    } catch (e) {}
+
     return {
       success: true,
       user: sanitizeUser(newUser),
@@ -565,6 +587,26 @@ export const authService = {
     };
 
     saveLocalUsers(users);
+
+    // Sync avec cdi_local_data_v2
+    try {
+      const rawLocal = localStorage.getItem('cdi_local_data_v2');
+      if (rawLocal) {
+        const localData = JSON.parse(rawLocal);
+        const mIdx = (localData.monitors || []).findIndex(m => m.id === id);
+        if (mIdx !== -1) {
+          localData.monitors[mIdx] = {
+            ...localData.monitors[mIdx],
+            ...(userData.name && { name: userData.name.trim() }),
+            ...(userData.color && { color: userData.color }),
+            ...(userData.avatar && { avatar: userData.avatar }),
+            ...(userData.hourlyRate !== undefined && { hourlyRate: Number(userData.hourlyRate) })
+          };
+          localStorage.setItem('cdi_local_data_v2', JSON.stringify(localData));
+        }
+      }
+    } catch (e) {}
+
     return { success: true, user: sanitizeUser(users[idx]) };
   },
 
@@ -591,6 +633,17 @@ export const authService = {
     let users = getLocalUsers();
     users = users.filter(u => u.id !== id);
     saveLocalUsers(users);
+
+    // Sync avec cdi_local_data_v2
+    try {
+      const rawLocal = localStorage.getItem('cdi_local_data_v2');
+      if (rawLocal) {
+        const localData = JSON.parse(rawLocal);
+        localData.monitors = (localData.monitors || []).filter(m => m.id !== id);
+        localStorage.setItem('cdi_local_data_v2', JSON.stringify(localData));
+      }
+    } catch (e) {}
+
     return { success: true };
   },
 

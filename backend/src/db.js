@@ -22,6 +22,8 @@ export const INITIAL_USERS = [
     canManage: true,
     avatar: '👩‍🏫',
     color: '#DB2777',
+    bgLight: '#FDF2F8',
+    border: '#F472B6',
     hourlyRate: 9.55,
     passwordHash: null,
     createdAt: '2026-09-01T00:00:00.000Z'
@@ -34,6 +36,8 @@ export const INITIAL_USERS = [
     canManage: true,
     avatar: '👩‍🏫',
     color: '#D97706',
+    bgLight: '#FFFBEB',
+    border: '#FBBF24',
     hourlyRate: 9.55,
     passwordHash: null,
     createdAt: '2026-09-01T00:00:00.000Z'
@@ -42,8 +46,8 @@ export const INITIAL_USERS = [
     id: 'moniteur-1',
     name: 'Noah',
     normalizedName: 'noah',
-    role: 'monitor', // Rôle moniteur
-    canManage: true, // Avec les permissions d'ajouter/gérer les moniteurs
+    role: 'monitor',
+    canManage: true,
     avatar: '👨‍🎓',
     color: '#7C3AED',
     bgLight: '#EFF6FF',
@@ -70,8 +74,29 @@ export const INITIAL_USERS = [
 
 export const INITIAL_MONITORS = [
   {
+    id: 'user-virginie',
+    name: 'Virginie',
+    role: 'manager',
+    color: '#DB2777',
+    bgLight: '#FDF2F8',
+    border: '#F472B6',
+    hourlyRate: 9.55,
+    avatar: '👩‍🏫'
+  },
+  {
+    id: 'user-kristell',
+    name: 'Kristell',
+    role: 'manager',
+    color: '#D97706',
+    bgLight: '#FFFBEB',
+    border: '#FBBF24',
+    hourlyRate: 9.55,
+    avatar: '👩‍🏫'
+  },
+  {
     id: 'moniteur-1',
     name: 'Noah',
+    role: 'monitor',
     color: '#7C3AED',
     bgLight: '#EFF6FF',
     border: '#93C5FD',
@@ -81,6 +106,7 @@ export const INITIAL_MONITORS = [
   {
     id: 'moniteur-2',
     name: 'Lucas',
+    role: 'monitor',
     color: '#475569',
     bgLight: '#ECFDF5',
     border: '#6EE7B7',
@@ -147,6 +173,16 @@ export function readDb() {
     if (!data.monitors || !Array.isArray(data.monitors) || data.monitors.length === 0) {
       data.monitors = [...INITIAL_MONITORS];
       changed = true;
+    } else {
+      // S'assurer que Virginie et Kristell sont aussi dans monitors pour la visibilité d'équipe
+      INITIAL_MONITORS.forEach(baseMon => {
+        const norm = normalizeName(baseMon.name);
+        const exists = data.monitors.some(m => normalizeName(m.name) === norm);
+        if (!exists) {
+          data.monitors.push(baseMon);
+          changed = true;
+        }
+      });
     }
 
     // S'assurer que tous les users ont un normalizedName

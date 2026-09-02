@@ -1,12 +1,35 @@
 import { getSupabase, isSupabaseConfigured } from './supabaseClient';
+import { normalizeName } from '../utils/authUtils';
 
 const LOCAL_STORAGE_KEY_DATA = 'cdi_local_data_v2';
+const LOCAL_STORAGE_KEY_USERS = 'cdi_auth_users_v3';
 
 const DEFAULT_FALLBACK_DATA = {
   monitors: [
     {
+      id: 'user-virginie',
+      name: 'Virginie',
+      role: 'manager',
+      color: '#DB2777',
+      bgLight: '#FDF2F8',
+      border: '#F472B6',
+      hourlyRate: 9.55,
+      avatar: '👩‍🏫'
+    },
+    {
+      id: 'user-kristell',
+      name: 'Kristell',
+      role: 'manager',
+      color: '#D97706',
+      bgLight: '#FFFBEB',
+      border: '#FBBF24',
+      hourlyRate: 9.55,
+      avatar: '👩‍🏫'
+    },
+    {
       id: 'moniteur-1',
       name: 'Noah',
+      role: 'monitor',
       color: '#7C3AED',
       bgLight: '#EFF6FF',
       border: '#93C5FD',
@@ -16,6 +39,7 @@ const DEFAULT_FALLBACK_DATA = {
     {
       id: 'moniteur-2',
       name: 'Lucas',
+      role: 'monitor',
       color: '#475569',
       bgLight: '#ECFDF5',
       border: '#6EE7B7',
@@ -60,16 +84,6 @@ const DEFAULT_FALLBACK_DATA = {
       durationHours: 1,
       note: 'Permanence accueil CDI',
       visitorsCount: 15
-    },
-    {
-      id: 'shift-4',
-      monitorId: 'moniteur-2',
-      date: '2026-09-04',
-      startTime: '12:30',
-      endTime: '13:30',
-      durationHours: 1,
-      note: 'Permanence accueil CDI',
-      visitorsCount: 22
     }
   ]
 };
@@ -81,7 +95,36 @@ function getLocalData() {
       localStorage.setItem(LOCAL_STORAGE_KEY_DATA, JSON.stringify(DEFAULT_FALLBACK_DATA));
       return DEFAULT_FALLBACK_DATA;
     }
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    let changed = false;
+
+    // S'assurer que les 4 profils de base sont présents dans monitors
+    DEFAULT_FALLBACK_DATA.monitors.forEach(baseMon => {
+      const norm = normalizeName(baseMon.name);
+      const exists = (data.monitors || []).some(m => normalizeName(m.name) === norm);
+      if (!exists) {
+        data.monitors = data.monitors || [];
+        data.monitors.push(baseMon);
+        changed = true;
+      }
+    });
+
+    // Mettre à jour l'orthographe de Kristell si encore Christelle
+    if (data.monitors) {
+      data.monitors = data.monitors.map(m => {
+        if (normalizeName(m.name) === 'christelle') {
+          changed = true;
+          return { ...m, name: 'Kristell' };
+        }
+        return m;
+      });
+    }
+
+    if (changed) {
+      localStorage.setItem(LOCAL_STORAGE_KEY_DATA, JSON.stringify(data));
+    }
+
+    return data;
   } catch (e) {
     return DEFAULT_FALLBACK_DATA;
   }
@@ -91,12 +134,12 @@ function saveLocalData(data) {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY_DATA, JSON.stringify(data));
   } catch (e) {
-    console.error('Erreur sauvegarde locale:', e);
+    console.error('Erreur sauvegarde données locales:', e);
   }
 }
 
-// Helpers de conversion Supabase <-> Frontend
 function mapShiftFromSupabase(row) {
+  if (!row) return null;
   return {
     id: row.id,
     monitorId: row.monitor_id,
@@ -104,22 +147,36 @@ function mapShiftFromSupabase(row) {
     startTime: row.start_time,
     endTime: row.end_time,
     durationHours: Number(row.duration_hours),
-    note: row.note || 'Permanence accueil CDI',
-    visitorsCount: Number(row.visitors_count || 0),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    note: row.note,
+    visitorsCount: Number(row.visitors_count) || 0,
+    createdAt: row.created_at
+  };
+}
+
+function mapShiftToSupabase(shift) {
+  return {
+    ...(shift.id && !shift.id.startsWith('shift-') ? { id: shift.id } : {}),
+    monitor_id: shift.monitorId,
+    date: shift.date,
+    start_time: shift.startTime,
+    end_time: shift.endTime,
+    duration_hours: Number(shift.durationHours),
+    note: shift.note || 'Permanence accueil CDI',
+    visitors_count: Number(shift.visitorsCount) || 0,
+    updated_at: new Date().toISOString()
   };
 }
 
 function mapMonitorFromSupabase(row) {
+  if (!row) return null;
   return {
     id: row.id,
     name: row.name,
     color: row.color,
-    bgLight: row.bg_light,
-    border: row.border,
-    hourlyRate: Number(row.hourly_rate),
-    avatar: row.avatar
+    bgLight: row.bg_light || '#EFF6FF',
+    border: row.border || '#93C5FD',
+    hourlyRate: Number(row.hourly_rate) || 9.55,
+    avatar: row.avatar || '👨‍🎓'
   };
 }
 
@@ -138,6 +195,20 @@ export const dataService = {
           const monitors = monitorsRes.data.map(mapMonitorFromSupabase);
           const settings = settingsRes.data?.value || DEFAULT_FALLBACK_DATA.settings;
           return { monitors, settings, source: 'supabase' };
+        } else if (!monitorsRes.error && (!monitorsRes.data || monitorsRes.data.length === 0)) {
+          // Auto-seed table monitors dans Supabase
+          for (const m of DEFAULT_FALLBACK_DATA.monitors) {
+            await supabase.from('monitors').insert({
+              id: m.id,
+              name: m.name,
+              color: m.color,
+              bg_light: m.bgLight,
+              border: m.border,
+              hourly_rate: m.hourlyRate,
+              avatar: m.avatar
+            });
+          }
+          return { monitors: DEFAULT_FALLBACK_DATA.monitors, settings: DEFAULT_FALLBACK_DATA.settings, source: 'supabase' };
         }
       } catch (err) {
         console.warn('Erreur Supabase getMonitorsAndSettings, fallback local:', err);
@@ -158,16 +229,15 @@ export const dataService = {
     return { monitors: local.monitors, settings: local.settings, source: 'local' };
   },
 
-  // 2. Récupérer les créneaux pour un mois
+  // 2. Récupérer les créneaux
   async getShifts(monthStr, monitorFilter = 'ALL') {
     const supabase = getSupabase();
     if (supabase) {
       try {
         let query = supabase.from('shifts').select('*').order('date', { ascending: true }).order('start_time', { ascending: true });
+
         if (monthStr) {
-          const [y, m] = monthStr.split('-');
-          const lastDay = new Date(Number(y), Number(m), 0).getDate();
-          query = query.gte('date', `${monthStr}-01`).lte('date', `${monthStr}-${String(lastDay).padStart(2, '0')}`);
+          query = query.gte('date', `${monthStr}-01`).lte('date', `${monthStr}-31`);
         }
         if (monitorFilter && monitorFilter !== 'ALL') {
           query = query.eq('monitor_id', monitorFilter);
@@ -182,100 +252,82 @@ export const dataService = {
       }
     }
 
-    // Essayer l'API Express si disponible
     try {
-      const q = new URLSearchParams();
-      if (monthStr) q.append('month', monthStr);
-      if (monitorFilter !== 'ALL') q.append('monitorId', monitorFilter);
-      const res = await fetch(`/api/shifts?${q.toString()}`);
+      const url = new URL('/api/shifts', window.location.origin);
+      if (monthStr) url.searchParams.set('month', monthStr);
+      if (monitorFilter && monitorFilter !== 'ALL') url.searchParams.set('monitorId', monitorFilter);
+
+      const res = await fetch(url.toString());
       if (res.ok) {
         const data = await res.json();
         return { shifts: data.shifts, source: 'api' };
       }
     } catch (e) {}
 
-    // Fallback localStorage
     const local = getLocalData();
-    let shifts = local.shifts || [];
-    if (monthStr) shifts = shifts.filter(s => s.date.startsWith(monthStr));
-    if (monitorFilter !== 'ALL') shifts = shifts.filter(s => s.monitorId === monitorFilter);
-    return { shifts, source: 'local' };
+    let list = local.shifts || [];
+    if (monthStr) {
+      list = list.filter(s => s.date.startsWith(monthStr));
+    }
+    if (monitorFilter && monitorFilter !== 'ALL') {
+      list = list.filter(s => s.monitorId === monitorFilter);
+    }
+    return { shifts: list, source: 'local' };
   },
 
   // 3. Ajouter un ou plusieurs créneaux
-  async addShifts(shiftsToAdd) {
-    const items = Array.isArray(shiftsToAdd) ? shiftsToAdd : [shiftsToAdd];
+  async addShifts(newShifts) {
+    const shiftsArray = Array.isArray(newShifts) ? newShifts : [newShifts];
     const supabase = getSupabase();
-
     if (supabase) {
       try {
-        const rows = items.map(item => ({
-          monitor_id: item.monitorId,
-          date: item.date,
-          start_time: item.startTime,
-          end_time: item.endTime,
-          duration_hours: item.durationHours || 1.0,
-          note: item.note || 'Permanence accueil CDI',
-          visitors_count: Number(item.visitorsCount || 0)
-        }));
-
+        const rows = shiftsArray.map(mapShiftToSupabase);
         const { data, error } = await supabase.from('shifts').insert(rows).select();
-        if (!error) {
-          return { success: true, created: data.map(mapShiftFromSupabase) };
-        } else {
-          console.error('Erreur insertion Supabase:', error);
-          throw new Error(error.message);
+        if (!error && data) {
+          return { success: true, shifts: data.map(mapShiftFromSupabase) };
         }
       } catch (err) {
-        console.error(err);
+        console.error('Erreur Supabase addShifts:', err);
       }
     }
 
-    // Essayer l'API Express
     try {
       const res = await fetch('/api/shifts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(shiftsToAdd)
+        body: JSON.stringify(shiftsArray)
       });
       if (res.ok) return await res.json();
     } catch (e) {}
 
-    // Fallback localStorage
     const local = getLocalData();
-    const created = items.map(item => ({
-      id: 'shift-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-      monitorId: item.monitorId,
-      date: item.date,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      durationHours: item.durationHours || 1.0,
-      note: item.note || 'Permanence accueil CDI',
-      visitorsCount: Number(item.visitorsCount || 0),
-      createdAt: new Date().toISOString()
+    const createdList = shiftsArray.map(s => ({
+      ...s,
+      id: s.id || `shift-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      visitorsCount: Number(s.visitorsCount) || 0
     }));
 
-    local.shifts = [...(local.shifts || []), ...created];
+    local.shifts = [...(local.shifts || []), ...createdList];
     saveLocalData(local);
-    return { success: true, created };
+    return { success: true, shifts: createdList };
   },
 
   // 4. Modifier un créneau
-  async updateShift(id, payload) {
+  async updateShift(id, updatedFields) {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const updateData = {};
-        if (payload.monitorId) updateData.monitor_id = payload.monitorId;
-        if (payload.date) updateData.date = payload.date;
-        if (payload.startTime) updateData.start_time = payload.startTime;
-        if (payload.endTime) updateData.end_time = payload.endTime;
-        if (payload.durationHours !== undefined) updateData.duration_hours = payload.durationHours;
-        if (payload.note !== undefined) updateData.note = payload.note;
-        if (payload.visitorsCount !== undefined) updateData.visitors_count = Number(payload.visitorsCount);
-        updateData.updated_at = new Date().toISOString();
+        const payload = {};
+        if (updatedFields.monitorId) payload.monitor_id = updatedFields.monitorId;
+        if (updatedFields.date) payload.date = updatedFields.date;
+        if (updatedFields.startTime) payload.start_time = updatedFields.startTime;
+        if (updatedFields.endTime) payload.end_time = updatedFields.endTime;
+        if (updatedFields.durationHours !== undefined) payload.duration_hours = Number(updatedFields.durationHours);
+        if (updatedFields.note !== undefined) payload.note = updatedFields.note;
+        if (updatedFields.visitorsCount !== undefined) payload.visitors_count = Number(updatedFields.visitorsCount);
+        payload.updated_at = new Date().toISOString();
 
-        const { data, error } = await supabase.from('shifts').update(updateData).eq('id', id).select().maybeSingle();
+        const { data, error } = await supabase.from('shifts').update(payload).eq('id', id).select().maybeSingle();
         if (!error && data) {
           return { success: true, shift: mapShiftFromSupabase(data) };
         }
@@ -284,21 +336,19 @@ export const dataService = {
       }
     }
 
-    // API Express
     try {
       const res = await fetch(`/api/shifts/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(updatedFields)
       });
       if (res.ok) return await res.json();
     } catch (e) {}
 
-    // LocalStorage
     const local = getLocalData();
     const idx = (local.shifts || []).findIndex(s => s.id === id);
     if (idx !== -1) {
-      local.shifts[idx] = { ...local.shifts[idx], ...payload, updatedAt: new Date().toISOString() };
+      local.shifts[idx] = { ...local.shifts[idx], ...updatedFields };
       saveLocalData(local);
       return { success: true, shift: local.shifts[idx] };
     }
@@ -328,24 +378,32 @@ export const dataService = {
     return { success: true };
   },
 
-  // 6. Mettre à jour un moniteur (taux, couleur, nom)
+  // 6. Mettre à jour un moniteur (taux, couleur, nom, avatar)
   async updateMonitor(id, monitorData) {
+    const norm = monitorData.name ? normalizeName(monitorData.name) : undefined;
     const supabase = getSupabase();
     if (supabase) {
       try {
         const updateData = {};
-        if (monitorData.name) updateData.name = monitorData.name;
+        if (monitorData.name) updateData.name = monitorData.name.trim();
         if (monitorData.color) updateData.color = monitorData.color;
         if (monitorData.hourlyRate !== undefined) updateData.hourly_rate = Number(monitorData.hourlyRate);
         if (monitorData.avatar) updateData.avatar = monitorData.avatar;
         updateData.updated_at = new Date().toISOString();
 
-        const { data, error } = await supabase.from('monitors').update(updateData).eq('id', id).select().maybeSingle();
-        if (!error && data) {
-          return { success: true, monitor: mapMonitorFromSupabase(data) };
-        }
+        await Promise.all([
+          supabase.from('monitors').update(updateData).eq('id', id),
+          supabase.from('users').update({
+            ...(monitorData.name && { name: monitorData.name.trim(), normalized_name: norm }),
+            ...(monitorData.color && { color: monitorData.color }),
+            ...(monitorData.avatar && { avatar: monitorData.avatar }),
+            ...(monitorData.hourlyRate !== undefined && { hourly_rate: Number(monitorData.hourlyRate) })
+          }).eq('id', id)
+        ]);
+
+        return { success: true, monitor: monitorData };
       } catch (err) {
-        console.error(err);
+        console.error('Erreur Supabase updateMonitor:', err);
       }
     }
 
@@ -363,6 +421,20 @@ export const dataService = {
     if (idx !== -1) {
       local.monitors[idx] = { ...local.monitors[idx], ...monitorData };
       saveLocalData(local);
+
+      // Sync auth users
+      try {
+        const rawUsers = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
+        if (rawUsers) {
+          const usersList = JSON.parse(rawUsers);
+          const uIdx = usersList.findIndex(u => u.id === id);
+          if (uIdx !== -1) {
+            usersList[uIdx] = { ...usersList[uIdx], ...monitorData };
+            localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(usersList));
+          }
+        }
+      } catch (e) {}
+
       return { success: true, monitor: local.monitors[idx] };
     }
     return { success: false, error: 'Moniteur non trouvé' };
@@ -373,7 +445,7 @@ export const dataService = {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('settings')
           .upsert({ key: 'general', value: settingsData, updated_at: new Date().toISOString() })
           .select()
@@ -400,26 +472,88 @@ export const dataService = {
     return { success: true, settings: local.settings };
   },
 
-  // 8. Ajouter un moniteur (Manageuses)
+  // 8. Ajouter un moniteur ou une manageuse (Manageuses & Noah)
   async addMonitor(monitorData) {
+    const supabase = getSupabase();
+    const newId = monitorData.role === 'manager' ? `user-${Date.now()}` : `moniteur-${Date.now()}`;
+    const norm = normalizeName(monitorData.name);
+
+    if (supabase) {
+      try {
+        const userRow = {
+          id: newId,
+          name: monitorData.name.trim(),
+          normalized_name: norm,
+          role: monitorData.role === 'manager' ? 'manager' : 'monitor',
+          avatar: monitorData.avatar || '👨‍🎓',
+          color: monitorData.color || '#2563EB',
+          hourly_rate: Number(monitorData.hourlyRate) || 9.55,
+          password_hash: null,
+          created_at: new Date().toISOString()
+        };
+
+        const monitorRow = {
+          id: newId,
+          name: monitorData.name.trim(),
+          color: monitorData.color || '#2563EB',
+          bg_light: '#EFF6FF',
+          border: '#93C5FD',
+          hourly_rate: Number(monitorData.hourlyRate) || 9.55,
+          avatar: monitorData.avatar || '👨‍🎓'
+        };
+
+        const [userRes, monRes] = await Promise.all([
+          supabase.from('users').insert(userRow).select().maybeSingle(),
+          supabase.from('monitors').insert(monitorRow).select().maybeSingle()
+        ]);
+
+        if (!userRes.error && !monRes.error) {
+          const created = mapMonitorFromSupabase(monRes.data || monitorRow);
+          return {
+            success: true,
+            monitor: created,
+            user: userRow,
+            message: `Le profil « ${monitorData.name.trim()} » a été ajouté avec succès !`
+          };
+        } else if (userRes.error || monRes.error) {
+          console.error('Erreur insertion Supabase:', userRes.error, monRes.error);
+        }
+      } catch (err) {
+        console.error('Erreur Supabase addMonitor:', err);
+      }
+    }
+
+    // API Express
     try {
       const res = await fetch('/api/auth/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...monitorData, role: 'monitor' })
+        body: JSON.stringify({ ...monitorData, role: monitorData.role || 'monitor' })
       });
       if (res.ok) {
-        return await res.json();
+        const data = await res.json();
+        const mon = {
+          id: data.user.id,
+          name: data.user.name,
+          role: data.user.role,
+          color: data.user.color,
+          bgLight: '#EFF6FF',
+          border: '#93C5FD',
+          hourlyRate: data.user.hourlyRate,
+          avatar: data.user.avatar
+        };
+        return { success: true, monitor: mon, user: data.user, message: data.message };
       }
       const err = await res.json();
       return { success: false, error: err.error || 'Erreur lors de l\'ajout' };
     } catch (e) {}
 
+    // Fallback LocalStorage (sauvegarder dans cdi_local_data_v2 ET cdi_auth_users_v3)
     const local = getLocalData();
-    const newId = `moniteur-${Date.now()}`;
     const newMon = {
       id: newId,
-      name: monitorData.name,
+      name: monitorData.name.trim(),
+      role: monitorData.role || 'monitor',
       color: monitorData.color || '#2563EB',
       bgLight: '#EFF6FF',
       border: '#93C5FD',
@@ -429,11 +563,45 @@ export const dataService = {
 
     local.monitors = [...(local.monitors || []), newMon];
     saveLocalData(local);
-    return { success: true, monitor: newMon };
+
+    // Sync authService / local users
+    try {
+      const rawUsers = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
+      const usersList = rawUsers ? JSON.parse(rawUsers) : [];
+      if (!usersList.some(u => normalizeName(u.name) === norm)) {
+        usersList.push({
+          id: newId,
+          name: monitorData.name.trim(),
+          role: monitorData.role === 'manager' ? 'manager' : 'monitor',
+          canManage: monitorData.role === 'manager',
+          avatar: newMon.avatar,
+          color: newMon.color,
+          hourlyRate: newMon.hourlyRate,
+          passwordHash: null,
+          createdAt: new Date().toISOString()
+        });
+        localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(usersList));
+      }
+    } catch (e) {}
+
+    return { success: true, monitor: newMon, message: `Le profil pour « ${newMon.name} » a été créé avec succès.` };
   },
 
-  // 9. Supprimer un moniteur (Manageuses)
+  // 9. Supprimer un moniteur ou membre
   async deleteMonitor(id) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await Promise.all([
+          supabase.from('monitors').delete().eq('id', id),
+          supabase.from('users').delete().eq('id', id)
+        ]);
+        return { success: true };
+      } catch (err) {
+        console.error('Erreur Supabase deleteMonitor:', err);
+      }
+    }
+
     try {
       const res = await fetch(`/api/auth/users/${id}`, { method: 'DELETE' });
       if (res.ok) return await res.json();
@@ -442,11 +610,32 @@ export const dataService = {
     const local = getLocalData();
     local.monitors = (local.monitors || []).filter(m => m.id !== id);
     saveLocalData(local);
+
+    // Sync auth users
+    try {
+      const rawUsers = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
+      if (rawUsers) {
+        let usersList = JSON.parse(rawUsers);
+        usersList = usersList.filter(u => u.id !== id);
+        localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(usersList));
+      }
+    } catch (e) {}
+
     return { success: true };
   },
 
   // 10. Réinitialiser le mot de passe d'un utilisateur
   async resetPassword(id) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('users').update({ password_hash: null, updated_at: new Date().toISOString() }).eq('id', id);
+        return { success: true };
+      } catch (err) {
+        console.error('Erreur Supabase resetPassword:', err);
+      }
+    }
+
     try {
       const res = await fetch(`/api/auth/users/${id}`, {
         method: 'PUT',
@@ -455,6 +644,19 @@ export const dataService = {
       });
       if (res.ok) return await res.json();
     } catch (e) {}
+
+    try {
+      const rawUsers = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
+      if (rawUsers) {
+        const usersList = JSON.parse(rawUsers);
+        const idx = usersList.findIndex(u => u.id === id);
+        if (idx !== -1) {
+          usersList[idx].passwordHash = null;
+          localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(usersList));
+        }
+      }
+    } catch (e) {}
+
     return { success: true };
   }
 };

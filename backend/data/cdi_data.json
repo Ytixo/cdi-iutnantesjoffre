@@ -71,6 +71,26 @@
       "border": "#6EE7B7",
       "hourlyRate": 9.55,
       "avatar": "👨‍🎓"
+    },
+    {
+      "id": "user-virginie",
+      "name": "Virginie",
+      "role": "manager",
+      "color": "#DB2777",
+      "bgLight": "#FDF2F8",
+      "border": "#F472B6",
+      "hourlyRate": 9.55,
+      "avatar": "👩‍🏫"
+    },
+    {
+      "id": "user-kristell",
+      "name": "Kristell",
+      "role": "manager",
+      "color": "#D97706",
+      "bgLight": "#FFFBEB",
+      "border": "#FBBF24",
+      "hourlyRate": 9.55,
+      "avatar": "👩‍🏫"
     }
   ],
   "settings": {

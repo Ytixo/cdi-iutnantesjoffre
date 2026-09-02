@@ -35,7 +35,7 @@ export function SettingsModal({
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Formulaire d'ajout de nouveau moniteur
+  // Formulaire d'ajout de nouveau membre
   const [isAddingMonitor, setIsAddingMonitor] = useState(false);
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState('monitor');
@@ -47,9 +47,8 @@ export function SettingsModal({
   useEffect(() => {
     if (isOpen) {
       setCdiName(settings?.cdiName || 'CDI — IUT de Nantes');
-      setMonitorsState(monitors.map(m => ({ ...m })));
+      setMonitorsState((monitors || []).map(m => ({ ...m })));
       setErrorMsg('');
-      setSuccessMsg('');
       setIsAddingMonitor(false);
     }
   }, [isOpen, settings, monitors]);
@@ -76,6 +75,7 @@ export function SettingsModal({
         for (const m of monitorsState) {
           await onUpdateMonitor(m.id, {
             name: m.name,
+            role: m.role,
             hourlyRate: parseFloat(m.hourlyRate) || 9.55,
             color: m.color,
             avatar: m.avatar
@@ -106,7 +106,7 @@ export function SettingsModal({
   const handleCreateMonitor = async (e) => {
     e.preventDefault();
     if (!newName.trim()) {
-      setErrorMsg('Veuillez entrer un prénom pour le moniteur.');
+      setErrorMsg('Veuillez entrer un prénom.');
       return;
     }
 
@@ -116,19 +116,33 @@ export function SettingsModal({
 
     try {
       if (onAddMonitor) {
-        const res = await onAddMonitor({
+        const payload = {
           name: newName.trim(),
           role: newRole,
           hourlyRate: parseFloat(newHourlyRate) || 9.55,
           color: newColor,
           avatar: newAvatar
-        });
+        };
+
+        const res = await onAddMonitor(payload);
 
         if (res && res.success === false) {
           setErrorMsg(res.error || 'Erreur lors de la création');
         } else {
-          setSuccessMsg(`Le moniteur « ${newName.trim()} » a été ajouté ! Il pourra créer son mot de passe lors de sa première connexion.`);
+          const createdMon = res?.monitor || {
+            id: `moniteur-${Date.now()}`,
+            ...payload
+          };
+
+          // Ajouter immédiatement à la liste locale visible
+          setMonitorsState(prev => {
+            const filtered = prev.filter(m => m.id !== createdMon.id);
+            return [...filtered, createdMon];
+          });
+
+          setSuccessMsg(`Le profil « ${newName.trim()} » a été ajouté ! Il apparaîtra directement sur l'écran de connexion.`);
           setNewName('');
+          setNewRole('monitor');
           setIsAddingMonitor(false);
         }
       }
@@ -144,7 +158,7 @@ export function SettingsModal({
       try {
         if (onResetPassword) {
           await onResetPassword(monitorId);
-          setSuccessMsg(`Mot de passe de « ${monitorName} » réinitialisé.`);
+          setSuccessMsg(`Mot de passe de « ${monitorName} » réinitialisé avec succès.`);
         }
       } catch (err) {
         setErrorMsg('Erreur lors de la réinitialisation.');
@@ -160,7 +174,8 @@ export function SettingsModal({
           if (res && res.success === false) {
             setErrorMsg(res.error || 'Impossible de supprimer.');
           } else {
-            setSuccessMsg(`« ${monitorName} » a été supprimé(e).`);
+            setMonitorsState(prev => prev.filter(m => m.id !== monitorId));
+            setSuccessMsg(`« ${monitorName} » a été supprimé(e) de l'équipe.`);
           }
         }
       } catch (err) {
@@ -237,15 +252,15 @@ export function SettingsModal({
           )}
         </div>
 
-        {/* TAB 1: GESTION DE L'ÉQUIPE */}
+        {/* TAB 1: GESTION DE L'ÉQUIPE (Manageuses & Noah) */}
         {activeTab === 'team' && canManageTeam && (
           <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
             
-            {/* Action Bar : Bouton Ajouter un moniteur */}
+            {/* Action Bar : Bouton Ajouter un membre */}
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Moniteurs & Manageuses</h3>
-                <p className="text-xs text-slate-500">Ajoutez, modifiez ou réinitialisez les accès des membres.</p>
+                <h3 className="text-sm font-bold text-slate-900">Membres de l'Équipe</h3>
+                <p className="text-xs text-slate-500">Ajoutez, modifiez ou réinitialisez les accès des moniteurs et manageuses.</p>
               </div>
 
               {!isAddingMonitor && (
@@ -255,18 +270,18 @@ export function SettingsModal({
                   className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-all"
                 >
                   <UserPlus className="w-4 h-4" />
-                  <span>Ajouter un moniteur</span>
+                  <span>+ Ajouter un membre</span>
                 </button>
               )}
             </div>
 
-            {/* FORMULAIRE D'AJOUT D'UN NOUVEAU MONITEUR */}
+            {/* FORMULAIRE D'AJOUT D'UN NOUVEAU MEMBRE */}
             {isAddingMonitor && (
               <form onSubmit={handleCreateMonitor} className="p-4 rounded-2xl border-2 border-blue-200 bg-blue-50/40 space-y-4 animate-in fade-in">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2 text-blue-700 text-xs font-bold uppercase tracking-wider">
                     <UserPlus className="w-4 h-4" />
-                    <span>Nouveau Moniteur</span>
+                    <span>Nouveau Membre</span>
                   </div>
                   <button
                     type="button"
@@ -278,19 +293,33 @@ export function SettingsModal({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                      Prénom du nouveau membre
+                      Prénom
                     </label>
                     <input
                       type="text"
-                      placeholder="ex: Sarah, Julien, Élise..."
+                      placeholder="ex: Sarah, Julien..."
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       autoFocus
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                       required
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                      Rôle
+                    </label>
+                    <select
+                      value={newRole}
+                      onChange={(e) => setNewRole(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="monitor">🎓 Moniteur</option>
+                      <option value="manager">👑 Manageuse / Manageur</option>
+                    </select>
                   </div>
 
                   <div>
@@ -374,129 +403,154 @@ export function SettingsModal({
 
             {/* LISTE DES MEMBRES ACTUELS */}
             <div className="space-y-4">
-              {monitorsState.map((m, idx) => (
-                <div
-                  key={m.id}
-                  className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Moniteur #{idx + 1}
-                      </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                        🎓 Moniteur
-                      </span>
-                    </div>
+              {monitorsState.map((m, idx) => {
+                const isManagerMember = m.role === 'manager';
+                const roleBadge = isManagerMember ? '👑 Manageuse' : '🎓 Moniteur';
 
-                    <div className="flex items-center space-x-1">
-                      {PRESET_AVATARS.slice(0, 5).map(emoji => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => handleMonitorChange(m.id, 'avatar', emoji)}
-                          className={`text-lg p-1 rounded-lg transition-transform cursor-pointer ${
-                            m.avatar === emoji ? 'bg-white shadow-xs scale-125' : 'opacity-60 hover:opacity-100'
-                          }`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                        Prénom du moniteur
-                      </label>
-                      <input
-                        type="text"
-                        value={m.name}
-                        onChange={(e) => handleMonitorChange(m.id, 'name', e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                        Taux horaire (€ / heure)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={m.hourlyRate}
-                          onChange={(e) => handleMonitorChange(m.id, 'hourlyRate', e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 pr-8"
-                          required
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                          €/h
+                return (
+                  <div
+                    key={m.id || idx}
+                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          Membre #{idx + 1}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          isManagerMember
+                            ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                            : 'bg-blue-100 text-blue-700 border border-blue-200'
+                        }`}>
+                          {roleBadge}
                         </span>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Colors */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5 flex items-center gap-1">
-                      <Palette className="w-3 h-3 text-slate-400" /> Couleur associée au planning
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {PRESET_COLORS.map(c => {
-                        const isSelected = m.color === c.hex;
-                        return (
+                      <div className="flex items-center space-x-1">
+                        {PRESET_AVATARS.slice(0, 5).map(emoji => (
                           <button
-                            key={c.hex}
+                            key={emoji}
                             type="button"
-                            onClick={() => handleMonitorChange(m.id, 'color', c.hex)}
-                            style={{ backgroundColor: c.hex }}
-                            className={`w-6 h-6 rounded-full transition-all flex items-center justify-center cursor-pointer ${
-                              isSelected ? 'ring-3 ring-offset-2 ring-slate-800 scale-110 shadow-xs' : 'opacity-80 hover:opacity-100'
+                            onClick={() => handleMonitorChange(m.id, 'avatar', emoji)}
+                            className={`text-lg p-1 rounded-lg transition-transform cursor-pointer ${
+                              m.avatar === emoji ? 'bg-white shadow-xs scale-125' : 'opacity-60 hover:opacity-100'
                             }`}
-                            title={c.name}
                           >
-                            {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                            {emoji}
                           </button>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Manageuse actions on monitor */}
-                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
-                    <button
-                      type="button"
-                      onClick={() => handleResetUserPassword(m.id, m.name)}
-                      className="text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg font-medium flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Réinitialise le mot de passe pour forcer une nouvelle création à la prochaine connexion"
-                    >
-                      <KeyRound className="w-3.5 h-3.5" />
-                      <span>Réinitialiser mot de passe</span>
-                    </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                          Prénom
+                        </label>
+                        <input
+                          type="text"
+                          value={m.name}
+                          onChange={(e) => handleMonitorChange(m.id, 'name', e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
 
-                    {monitorsState.length > 1 && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                          Taux horaire (€ / heure)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={m.hourlyRate}
+                            onChange={(e) => handleMonitorChange(m.id, 'hourlyRate', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 pr-8"
+                            required
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                            €/h
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Colors */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-500 mb-1.5 flex items-center gap-1">
+                        <Palette className="w-3 h-3 text-slate-400" /> Couleur associée au planning
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {PRESET_COLORS.map(c => {
+                          const isSelected = m.color === c.hex;
+                          return (
+                            <button
+                              key={c.hex}
+                              type="button"
+                              onClick={() => handleMonitorChange(m.id, 'color', c.hex)}
+                              style={{ backgroundColor: c.hex }}
+                              className={`w-6 h-6 rounded-full transition-all flex items-center justify-center cursor-pointer ${
+                                isSelected ? 'ring-2 ring-slate-800 scale-110' : 'opacity-70 hover:opacity-100'
+                              }`}
+                            >
+                              {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Actions d'administration pour ce membre */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => handleResetUserPassword(m.id, m.name)}
+                        className="text-amber-700 hover:text-amber-900 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Réinitialiser mot de passe</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => handleDeleteUser(m.id, m.name)}
-                        className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded-lg transition-colors cursor-pointer"
-                        title="Supprimer ce moniteur"
+                        className="text-red-600 hover:text-red-800 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Supprimer</span>
                       </button>
-                    )}
-                  </div>
+                    </div>
 
-                </div>
-              ))}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveGeneral}
+                disabled={saving}
+                className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>{saving ? 'Enregistrement...' : 'Enregistrer les modifications'}</span>
+              </button>
             </div>
 
           </div>
         )}
 
-        {/* TAB 2: PARAMÈTRES GÉNÉRAUX OU VUE MONITEUR */}
+        {/* TAB 2: PARAMÈTRES GÉNÉRAUX */}
         {activeTab === 'general' && (
           <form onSubmit={handleSaveGeneral} className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
             
