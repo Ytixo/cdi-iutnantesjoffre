@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Users, Euro, Check, Palette, Plus, Trash2, KeyRound, ShieldAlert, Sparkles, UserPlus, ShieldCheck, CheckCircle2, Clock, Cloud, Database, ExternalLink, RefreshCw } from 'lucide-react';
-import { getSupabaseCredentials, saveSupabaseCredentials, testSupabaseConnection, isSupabaseConfigured } from '../services/supabaseClient';
+import { X, Settings, Users, Euro, Check, Palette, Plus, Trash2, KeyRound, ShieldAlert, Sparkles, UserPlus, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const PRESET_COLORS = [
   { name: 'Violet', hex: '#7C3AED' },
@@ -46,12 +45,6 @@ export function SettingsModal({
   const [newAvatar, setNewAvatar] = useState('👨‍🎓');
   const [addingLoading, setAddingLoading] = useState(false);
 
-  // Configuration Supabase Cloud
-  const [supabaseUrl, setSupabaseUrl] = useState('');
-  const [supabaseKey, setSupabaseKey] = useState('');
-  const [testingSupabase, setTestingSupabase] = useState(false);
-  const [supabaseFeedback, setSupabaseFeedback] = useState(null);
-
   useEffect(() => {
     if (isOpen) {
       setCdiName(settings?.cdiName || 'CDI — IUT de Nantes');
@@ -60,11 +53,6 @@ export function SettingsModal({
       setErrorMsg('');
       setSuccessMsg('');
       setIsAddingMonitor(false);
-
-      const creds = getSupabaseCredentials();
-      setSupabaseUrl(creds.url || '');
-      setSupabaseKey(creds.key || '');
-      setSupabaseFeedback(null);
     }
   }, [isOpen, settings, teamMembers, monitors]);
 
@@ -198,48 +186,6 @@ export function SettingsModal({
     }
   };
 
-  // Gestion Supabase
-  const handleTestSupabase = async () => {
-    if (!supabaseUrl.trim() || !supabaseKey.trim()) {
-      setSupabaseFeedback({ success: false, error: 'Veuillez saisir votre URL de projet et votre clé publique Supabase.' });
-      return;
-    }
-    setTestingSupabase(true);
-    setSupabaseFeedback(null);
-    try {
-      const res = await testSupabaseConnection(supabaseUrl.trim(), supabaseKey.trim());
-      setSupabaseFeedback(res);
-    } catch (e) {
-      setSupabaseFeedback({ success: false, error: e.message || 'Erreur de connexion' });
-    } finally {
-      setTestingSupabase(false);
-    }
-  };
-
-  const handleSaveSupabase = () => {
-    if (!supabaseUrl.trim() || !supabaseKey.trim()) {
-      setSupabaseFeedback({ success: false, error: 'Veuillez renseigner l\'URL et la clé Supabase.' });
-      return;
-    }
-    saveSupabaseCredentials(supabaseUrl.trim(), supabaseKey.trim());
-    setSuccessMsg('Identifiants Supabase enregistrés ! Rechargement en cours...');
-    setTimeout(() => {
-      window.location.reload();
-    }, 600);
-  };
-
-  const handleDisconnectSupabase = () => {
-    if (confirm('Voulez-vous détacher Supabase et repasser en mode stockage local ?')) {
-      saveSupabaseCredentials('', '');
-      setSupabaseUrl('');
-      setSupabaseKey('');
-      setSuccessMsg('Supabase détaché. Rechargement...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 600);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200 max-h-[94vh] flex flex-col">
@@ -264,11 +210,11 @@ export function SettingsModal({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center space-x-2 px-5 pt-4 pb-1 border-b border-slate-100 shrink-0 overflow-x-auto">
+        <div className="flex items-center space-x-2 px-5 pt-4 pb-1 border-b border-slate-100 shrink-0">
           {canManageTeam && (
             <button
               onClick={() => setActiveTab('team')}
-              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'team'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 bg-slate-100/80'
@@ -281,7 +227,7 @@ export function SettingsModal({
 
           <button
             onClick={() => setActiveTab('general')}
-            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'general'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 bg-slate-100/80'
@@ -289,18 +235,6 @@ export function SettingsModal({
           >
             <Settings className="w-3.5 h-3.5" />
             <span>Paramètres Généraux</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('supabase')}
-            className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'supabase'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-emerald-700 hover:text-emerald-900 bg-emerald-50'
-            }`}
-          >
-            <Cloud className="w-3.5 h-3.5" />
-            <span>Base Supabase Cloud</span>
           </button>
         </div>
 
@@ -716,137 +650,6 @@ export function SettingsModal({
             </div>
 
           </form>
-        )}
-
-        {/* TAB 3: CONNEXION BASE SUPABASE CLOUD */}
-        {activeTab === 'supabase' && (
-          <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
-            
-            {/* Status Banner */}
-            <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-              isSupabaseConfigured()
-                ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
-                : 'bg-amber-50/70 border-amber-200 text-amber-900'
-            }`}>
-              <div className="flex items-center space-x-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${
-                  isSupabaseConfigured() ? 'bg-emerald-600' : 'bg-amber-600'
-                }`}>
-                  <Cloud className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm">
-                    {isSupabaseConfigured() ? 'Supabase Cloud Connecté 🟢' : 'Mode Stockage Navigateur (Local) 🟣'}
-                  </h4>
-                  <p className="text-xs opacity-80">
-                    {isSupabaseConfigured()
-                      ? 'Toutes les modifications sont synchronisées en direct dans votre base Supabase.'
-                      : 'Connectez votre projet Supabase pour synchroniser Noah, Lucas et les manageuses en temps réel.'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Test feedback */}
-            {supabaseFeedback && (
-              <div className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center space-x-2 ${
-                supabaseFeedback.success
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-red-50 border-red-200 text-red-800'
-              }`}>
-                {supabaseFeedback.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />}
-                <span>{supabaseFeedback.message || supabaseFeedback.error}</span>
-              </div>
-            )}
-
-            {/* Form */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Project URL (URL du Projet Supabase)
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://votre-projet.supabase.co"
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Public Anon Key (Clé API Publique Anon)
-                </label>
-                <input
-                  type="password"
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  value={supabaseKey}
-                  onChange={(e) => setSupabaseKey(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white font-mono"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={handleTestSupabase}
-                  disabled={testingSupabase || !supabaseUrl || !supabaseKey}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${testingSupabase ? 'animate-spin' : ''}`} />
-                  <span>{testingSupabase ? 'Test en cours...' : 'Tester la connexion'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveSupabase}
-                  disabled={!supabaseUrl || !supabaseKey}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Enregistrer & Synchroniser</span>
-                </button>
-
-                {isSupabaseConfigured() && (
-                  <button
-                    type="button"
-                    onClick={handleDisconnectSupabase}
-                    className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 text-xs font-bold rounded-xl transition-all ml-auto cursor-pointer"
-                  >
-                    Détacher Supabase
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Guide Info */}
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2 text-xs text-slate-600">
-              <h5 className="font-bold text-slate-900 flex items-center gap-1.5">
-                <Database className="w-4 h-4 text-emerald-600" />
-                <span>Où trouver vos identifiants Supabase ?</span>
-              </h5>
-              <ol className="list-decimal list-inside space-y-1 text-slate-500 leading-relaxed text-[11px]">
-                <li>Connectez-vous sur votre tableau de bord <a href="https://app.supabase.com" target="_blank" rel="noreferrer" className="text-emerald-600 font-bold underline">Supabase</a>.</li>
-                <li>Allez dans <strong>Project Settings (⚙️ en bas à gauche) → Data API</strong>.</li>
-                <li>Copiez votre <strong>Project URL</strong> et votre <strong>Project API key (anon / public)</strong>.</li>
-                <li>N'oubliez pas d'exécuter le script <code className="bg-slate-200 px-1 py-0.5 rounded font-mono">supabase_schema.sql</code> dans le menu <strong>SQL Editor</strong> pour créer les tables.</li>
-              </ol>
-            </div>
-
-            {/* Close */}
-            <div className="flex items-center justify-end pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                Fermer
-              </button>
-            </div>
-
-          </div>
         )}
 
       </div>

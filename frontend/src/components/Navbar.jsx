@@ -17,27 +17,11 @@ export function Navbar({
   const isManager = currentUser?.role === 'manager';
 
   const getStatusInfo = () => {
-    if (dataSource === 'supabase') {
-      return {
-        label: isSynced ? 'En direct' : 'Reconnexion...',
-        color: isSynced ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse',
-        dot: isSynced ? 'bg-emerald-500 animate-ping-slow' : 'bg-amber-500',
-        title: 'Connecté & synchronisé avec Supabase Cloud en temps réel'
-      };
-    }
-    if (dataSource === 'api') {
-      return {
-        label: 'Serveur local',
-        color: 'bg-blue-50 text-blue-700 border-blue-200',
-        dot: 'bg-blue-500',
-        title: 'Connecté au serveur local'
-      };
-    }
     return {
-      label: 'Prêt',
-      color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      dot: 'bg-emerald-500',
-      title: 'Données enregistrées dans votre navigateur'
+      label: isSynced ? 'En direct' : 'Reconnexion...',
+      color: isSynced ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse',
+      dot: isSynced ? 'bg-emerald-500 animate-ping-slow' : 'bg-amber-500',
+      title: 'Synchronisé avec Supabase Cloud en temps réel'
     };
   };
 

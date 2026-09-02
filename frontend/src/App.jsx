@@ -204,8 +204,8 @@ export function App() {
       <footer className="py-6 border-t border-slate-200 bg-white text-center text-xs text-slate-400 no-print">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p>© {new Date().getFullYear()} {settings?.cdiName || 'CDI — IUT de Nantes'} — Gestion des heures, salaires et fréquentation</p>
-          <span className="text-[11px] text-slate-400">
-            Source : {dataSource === 'supabase' ? '🟢 Supabase Cloud (Temps Réel)' : dataSource === 'api' ? '🔵 Serveur Local' : '🟣 Stockage Navigateur'}
+          <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+            <span>🟢</span> Supabase Cloud (Temps Réel)
           </span>
         </div>
       </footer>
