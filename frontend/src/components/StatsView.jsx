@@ -299,32 +299,6 @@ export function StatsView({
                   })}
                 </div>
               </div>
-
-              {/* Parity bar for attendance */}
-              {totalCombinedVisitors > 0 && monitor1 && monitor2 && (
-                <div className="pt-5 border-t border-slate-100 mt-4 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-slate-600 font-semibold">
-                    <span style={{ color: monitor1.color }}>{monitor1.name} ({Math.round((totalVisitorsNoah / totalCombinedVisitors) * 100)}%)</span>
-                    <span style={{ color: monitor2.color }}>{monitor2.name} ({Math.round((totalVisitorsLucas / totalCombinedVisitors) * 100)}%)</span>
-                  </div>
-                  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                    <div
-                      style={{
-                        width: `${(totalVisitorsNoah / totalCombinedVisitors) * 100}%`,
-                        backgroundColor: monitor1.color
-                      }}
-                      className="h-full transition-all duration-500"
-                    />
-                    <div
-                      style={{
-                        width: `${(totalVisitorsLucas / totalCombinedVisitors) * 100}%`,
-                        backgroundColor: monitor2.color
-                      }}
-                      className="h-full transition-all duration-500"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
           </div>

@@ -152,47 +152,6 @@ export function SalaryStatsCard({
         })}
       </div>
 
-      {/* Global Balance Bar (Répartition entre les 2 moniteurs) */}
-      {stats.totalCdiHours > 0 && monitor1 && monitor2 && (
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-blue-600" />
-              Répartition du temps de travail au CDI ({stats.formattedTotalCdiHours})
-            </span>
-            <div className="text-xs text-slate-500 flex items-center space-x-3">
-              <span className="font-medium" style={{ color: monitor1.color }}>
-                {monitor1.name} : {monitor1.percentage}% ({monitor1.formattedHours})
-              </span>
-              <span>vs</span>
-              <span className="font-medium" style={{ color: monitor2.color }}>
-                {monitor2.name} : {monitor2.percentage}% ({monitor2.formattedHours})
-              </span>
-            </div>
-          </div>
-
-          {/* Dual Color Progress Bar */}
-          <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-            <div
-              style={{
-                width: `${monitor1.percentage}%`,
-                backgroundColor: monitor1.color
-              }}
-              className="h-full transition-all duration-500 relative group"
-              title={`${monitor1.name}: ${monitor1.percentage}%`}
-            />
-            <div
-              style={{
-                width: `${monitor2.percentage}%`,
-                backgroundColor: monitor2.color
-              }}
-              className="h-full transition-all duration-500 relative group"
-              title={`${monitor2.name}: ${monitor2.percentage}%`}
-            />
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
