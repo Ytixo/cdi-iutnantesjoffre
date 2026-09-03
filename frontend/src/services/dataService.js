@@ -32,33 +32,43 @@ const DEFAULT_MONITORS = [
   }
 ];
 
+function isUUID(str) {
+  if (!str || typeof str !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
 function mapShiftFromSupabase(row) {
   if (!row) return null;
   return {
-    id: row.id,
+    id: String(row.id),
     monitorId: row.monitor_id,
     date: row.date,
     startTime: row.start_time,
     endTime: row.end_time,
-    durationHours: Number(row.duration_hours),
-    note: row.note,
+    durationHours: Number(row.duration_hours) || 1,
+    note: row.note || 'Permanence accueil CDI',
     visitorsCount: Number(row.visitors_count) || 0,
     createdAt: row.created_at
   };
 }
 
 function mapShiftToSupabase(shift) {
-  return {
-    ...(shift.id && !shift.id.startsWith('shift-') ? { id: shift.id } : {}),
+  const payload = {
     monitor_id: shift.monitorId,
     date: shift.date,
     start_time: shift.startTime,
     end_time: shift.endTime,
-    duration_hours: Number(shift.durationHours),
+    duration_hours: Number(shift.durationHours) || 1,
     note: shift.note || 'Permanence accueil CDI',
     visitors_count: Number(shift.visitorsCount) || 0,
     updated_at: new Date().toISOString()
   };
+
+  if (isUUID(shift.id)) {
+    payload.id = shift.id;
+  }
+
+  return payload;
 }
 
 function mapMonitorFromSupabase(row) {
@@ -120,21 +130,28 @@ export const dataService = {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        let query = supabase.from('shifts').select('*').order('date', { ascending: true }).order('start_time', { ascending: true });
+        let query = supabase
+          .from('shifts')
+          .select('*')
+          .order('date', { ascending: true })
+          .order('start_time', { ascending: true });
 
-        if (monthStr) {
-          query = query.gte('date', `${monthStr}-01`).lte('date', `${monthStr}-31`);
-        }
         if (monitorFilter && monitorFilter !== 'ALL') {
           query = query.eq('monitor_id', monitorFilter);
         }
 
         const { data, error } = await query;
         if (!error && data) {
-          return { shifts: data.map(mapShiftFromSupabase), source: 'supabase' };
+          let mapped = data.map(mapShiftFromSupabase);
+          if (monthStr) {
+            mapped = mapped.filter(s => s && s.date && s.date.startsWith(monthStr));
+          }
+          return { shifts: mapped, source: 'supabase' };
+        } else if (error) {
+          console.error('Erreur Supabase getShifts:', error);
         }
       } catch (err) {
-        console.error('Erreur Supabase getShifts:', err);
+        console.error('Exception Supabase getShifts:', err);
       }
     }
 
@@ -152,8 +169,10 @@ export const dataService = {
         if (!error && data) {
           return { success: true, shifts: data.map(mapShiftFromSupabase) };
         }
+        console.error('Erreur Supabase addShifts:', error);
         return { success: false, error: error?.message };
       } catch (err) {
+        console.error('Exception Supabase addShifts:', err);
         return { success: false, error: err.message };
       }
     }
@@ -179,8 +198,10 @@ export const dataService = {
         if (!error && data) {
           return { success: true, shift: mapShiftFromSupabase(data) };
         }
+        console.error('Erreur Supabase updateShift:', error);
         return { success: false, error: error?.message };
       } catch (err) {
+        console.error('Exception Supabase updateShift:', err);
         return { success: false, error: err.message };
       }
     }
@@ -194,8 +215,10 @@ export const dataService = {
       try {
         const { error } = await supabase.from('shifts').delete().eq('id', id);
         if (!error) return { success: true };
+        console.error('Erreur Supabase deleteShift:', error);
         return { success: false, error: error?.message };
       } catch (err) {
+        console.error('Exception Supabase deleteShift:', err);
         return { success: false, error: err.message };
       }
     }

@@ -65,10 +65,9 @@ ON CONFLICT (id) DO UPDATE SET
   avatar = EXCLUDED.avatar,
   color = EXCLUDED.color;
 
+-- Moniteurs de permanence (Noah et Lucas)
 INSERT INTO public.monitors (id, name, color, bg_light, border, hourly_rate, avatar)
 VALUES
-  ('user-virginie', 'Virginie', '#DB2777', '#FDF2F8', '#F472B6', 9.55, '👩‍🏫'),
-  ('user-kristell', 'Kristell', '#D97706', '#FFFBEB', '#FBBF24', 9.55, '👩‍🏫'),
   ('moniteur-1', 'Noah', '#7C3AED', '#EFF6FF', '#93C5FD', 9.55, '👨‍🎓'),
   ('moniteur-2', 'Lucas', '#475569', '#ECFDF5', '#6EE7B7', 9.55, '👨‍🎓')
 ON CONFLICT (id) DO UPDATE SET
@@ -81,6 +80,14 @@ INSERT INTO public.settings (key, value)
 VALUES
   ('general', '{"cdiName": "CDI — IUT de Nantes", "currency": "€", "defaultStartTime": "12:30", "defaultEndTime": "13:30", "allowOverlaps": false}')
 ON CONFLICT (key) DO NOTHING;
+
+-- Exemples de permanences initiales
+INSERT INTO public.shifts (monitor_id, date, start_time, end_time, duration_hours, note, visitors_count)
+VALUES
+  ('moniteur-1', '2026-09-01', '12:30', '13:30', 1.0, 'Permanence accueil CDI', 18),
+  ('moniteur-1', '2026-09-02', '12:30', '13:30', 1.0, 'Permanence accueil CDI', 24),
+  ('moniteur-2', '2026-09-03', '12:30', '13:30', 1.0, 'Permanence accueil CDI', 15)
+ON CONFLICT DO NOTHING;
 
 -- 6. Désactivation de RLS pour accès direct par l'application (clé publique anon)
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
