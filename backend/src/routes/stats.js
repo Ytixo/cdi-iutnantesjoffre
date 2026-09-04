@@ -10,11 +10,26 @@ function formatHoursMinutes(decimalHours) {
   return `${hours}h${minutes < 10 ? '0' : ''}${minutes}`;
 }
 
+function calculateDuration(startTime, endTime) {
+  if (!startTime || !endTime) return 0;
+  const [h1, m1] = startTime.split(':').map(Number);
+  const [h2, m2] = endTime.split(':').map(Number);
+  const minutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (minutes <= 0) return 0;
+  return Number((minutes / 60).toFixed(2));
+}
+
 // GET /api/stats?month=YYYY-MM
 statsRouter.get('/', (req, res) => {
   const db = readDb();
-  const shifts = db.shifts || [];
+  let shifts = db.shifts || [];
   const monitors = db.monitors || [];
+  
+  // Normaliser les durées
+  shifts = shifts.map(s => ({
+    ...s,
+    durationHours: (s.startTime && s.endTime) ? calculateDuration(s.startTime, s.endTime) : (Number(s.durationHours) || 0)
+  }));
   
   // Si le mois n'est pas spécifié, on prend le mois en cours
   const now = new Date();

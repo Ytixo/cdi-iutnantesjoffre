@@ -46,8 +46,22 @@ export function calculateDuration(startTime, endTime) {
   const [h1, m1] = startTime.split(':').map(Number);
   const [h2, m2] = endTime.split(':').map(Number);
   const minutes = (h2 * 60 + m2) - (h1 * 60 + m1);
-  return Math.max(0, Number((minutes / 60).toFixed(2)));
+  if (minutes <= 0) return 0;
+  // Précision exacte au quart d'heure (15 min = 0.25h, 2h15 = 2.25h, etc.)
+  return Number((minutes / 60).toFixed(2));
 }
+
+export function addMinutesToTime(timeStr, minutesToAdd) {
+  if (!timeStr) return '12:00';
+  const [h, m] = timeStr.split(':').map(Number);
+  let totalMinutes = h * 60 + (m || 0) + minutesToAdd;
+  // Clamping dans la journée entre 00:00 et 23:45
+  totalMinutes = Math.max(0, Math.min(23 * 60 + 45, totalMinutes));
+  const newH = Math.floor(totalMinutes / 60);
+  const newM = totalMinutes % 60;
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+}
+
 
 export function getMonthMatrix(year, monthIndex) {
   const firstDay = new Date(year, monthIndex, 1);

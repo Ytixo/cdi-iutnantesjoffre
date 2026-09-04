@@ -88,7 +88,7 @@ export function SalaryStatsCard({
                       {m.formattedHours}
                     </p>
                     <span className="text-[11px] text-slate-500 font-medium">
-                      ({m.totalHours} h au total)
+                      ({m.totalHours.toString().replace('.', ',')} h au total)
                     </span>
                   </div>
 

@@ -1,5 +1,6 @@
 import { getSupabase } from './supabaseClient';
 import { authService, DEFAULT_BASE_USERS } from './authService';
+import { calculateDuration } from '../utils/timeUtils';
 
 const DEFAULT_SETTINGS = {
   cdiName: 'CDI — IUT de Nantes',
@@ -39,13 +40,17 @@ function isUUID(str) {
 
 function mapShiftFromSupabase(row) {
   if (!row) return null;
+  const duration = (row.start_time && row.end_time)
+    ? calculateDuration(row.start_time, row.end_time)
+    : (Number(row.duration_hours) || 0);
+
   return {
     id: String(row.id),
     monitorId: row.monitor_id,
     date: row.date,
     startTime: row.start_time,
     endTime: row.end_time,
-    durationHours: Number(row.duration_hours) || 1,
+    durationHours: duration,
     note: row.note || 'Permanence accueil CDI',
     visitorsCount: Number(row.visitors_count) || 0,
     createdAt: row.created_at
@@ -53,12 +58,16 @@ function mapShiftFromSupabase(row) {
 }
 
 function mapShiftToSupabase(shift) {
+  const duration = (shift.startTime && shift.endTime)
+    ? calculateDuration(shift.startTime, shift.endTime)
+    : (Number(shift.durationHours) || 1);
+
   const payload = {
     monitor_id: shift.monitorId,
     date: shift.date,
     start_time: shift.startTime,
     end_time: shift.endTime,
-    duration_hours: Number(shift.durationHours) || 1,
+    duration_hours: duration,
     note: shift.note || 'Permanence accueil CDI',
     visitors_count: Number(shift.visitorsCount) || 0,
     updated_at: new Date().toISOString()
@@ -189,7 +198,11 @@ export const dataService = {
         if (updatedFields.date) payload.date = updatedFields.date;
         if (updatedFields.startTime) payload.start_time = updatedFields.startTime;
         if (updatedFields.endTime) payload.end_time = updatedFields.endTime;
-        if (updatedFields.durationHours !== undefined) payload.duration_hours = Number(updatedFields.durationHours);
+        if (updatedFields.durationHours !== undefined) {
+          payload.duration_hours = Number(updatedFields.durationHours);
+        } else if (updatedFields.startTime && updatedFields.endTime) {
+          payload.duration_hours = calculateDuration(updatedFields.startTime, updatedFields.endTime);
+        }
         if (updatedFields.note !== undefined) payload.note = updatedFields.note;
         if (updatedFields.visitorsCount !== undefined) payload.visitors_count = Number(updatedFields.visitorsCount);
         payload.updated_at = new Date().toISOString();

@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, Calendar, User, FileText, AlertTriangle, Check, Sparkles, Plus, Trash2, Users } from 'lucide-react';
-import { calculateDuration, formatCurrency, formatHours, getTodayString, DAYS_FR } from '../utils/timeUtils';
+import { X, Clock, Calendar, User, FileText, AlertTriangle, Check, Sparkles, Plus, Minus, Trash2, Users } from 'lucide-react';
+import { calculateDuration, formatCurrency, formatHours, getTodayString, DAYS_FR, addMinutesToTime } from '../utils/timeUtils';
 
 const QUICK_SLOTS = [
-  { start: '12:30', end: '13:30', label: '12h30 - 13h30 (Midi)' },
-  { start: '12:00', end: '13:00', label: '12h00 - 13h00' },
+  { start: '12:30', end: '13:30', label: '12h30 - 13h30 (1h)' },
+  { start: '12:00', end: '13:00', label: '12h00 - 13h00 (1h)' },
+  { start: '12:15', end: '13:30', label: '12h15 - 13h30 (1h15)' },
   { start: '12:30', end: '14:00', label: '12h30 - 14h00 (1h30)' },
-  { start: '13:00', end: '14:00', label: '13h00 - 14h00' },
-  { start: '16:30', end: '17:30', label: '16h30 - 17h30 (Soir)' },
-  { start: '17:00', end: '18:00', label: '17h00 - 18h00' }
+  { start: '12:00', end: '14:15', label: '12h00 - 14h15 (2h15)' },
+  { start: '12:30', end: '14:45', label: '12h30 - 14h45 (2h15)' },
+  { start: '12:00', end: '14:30', label: '12h00 - 14h30 (2h30)' },
+  { start: '16:30', end: '17:30', label: '16h30 - 17h30 (1h)' },
+  { start: '17:00', end: '18:15', label: '17h00 - 18h15 (1h15)' }
 ];
 
 export function ShiftModal({
@@ -117,6 +120,7 @@ export function ShiftModal({
           date: dates[0],
           startTime,
           endTime,
+          durationHours: duration,
           note,
           visitorsCount: Number(visitorsCount) || 0
         });
@@ -131,6 +135,7 @@ export function ShiftModal({
           date: d,
           startTime,
           endTime,
+          durationHours: duration,
           note,
           visitorsCount: Number(visitorsCount) || 0
         }));
@@ -298,10 +303,16 @@ export function ShiftModal({
 
           {/* Horaires & Créneaux Rapides */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Horaires
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Horaires de permanence
+              </label>
+              <span className="text-xs text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                Précision : quart d'heure (15 min)
+              </span>
+            </div>
 
+            {/* Créneaux types CDI */}
             <div className="grid grid-cols-3 gap-2 mb-3">
               {QUICK_SLOTS.map((slot, idx) => {
                 const isSelected = startTime === slot.start && endTime === slot.end;
@@ -325,28 +336,101 @@ export function ShiftModal({
               })}
             </div>
 
+            {/* Raccourcis de durée automatique (1h00, 1h15, 1h30, 2h00, 2h15...) */}
+            <div className="mb-3">
+              <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">
+                Régler la durée à partir de l'heure de début ({startTime}) :
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: '45m', min: 45 },
+                  { label: '1h00', min: 60 },
+                  { label: '1h15', min: 75 },
+                  { label: '1h30', min: 90 },
+                  { label: '1h45', min: 105 },
+                  { label: '2h00', min: 120 },
+                  { label: '2h15', min: 135 },
+                  { label: '2h30', min: 150 }
+                ].map(d => {
+                  const isCurrentDur = Math.round(duration * 60) === d.min;
+                  return (
+                    <button
+                      key={d.label}
+                      type="button"
+                      onClick={() => setEndTime(addMinutesToTime(startTime, d.min))}
+                      className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                        isCurrentDur
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-700'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Inputs début & fin avec boutons +/- 15 min */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Heure de début</label>
+              <div className="bg-slate-50/70 p-2.5 rounded-2xl border border-slate-200">
+                <label className="block text-[11px] font-bold text-slate-600 mb-1 text-center">
+                  Heure de début
+                </label>
                 <input
                   type="time"
                   step="900"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white text-center"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-1.5 text-sm font-extrabold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-center shadow-2xs"
                   required
                 />
+                <div className="flex items-center justify-between gap-1 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setStartTime(addMinutesToTime(startTime, -15))}
+                    className="flex-1 py-1 text-[11px] font-bold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg cursor-pointer transition-colors"
+                  >
+                    -15m
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStartTime(addMinutesToTime(startTime, 15))}
+                    className="flex-1 py-1 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition-colors"
+                  >
+                    +15m
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Heure de fin</label>
+
+              <div className="bg-slate-50/70 p-2.5 rounded-2xl border border-slate-200">
+                <label className="block text-[11px] font-bold text-slate-600 mb-1 text-center">
+                  Heure de fin
+                </label>
                 <input
                   type="time"
                   step="900"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white text-center"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-1.5 text-sm font-extrabold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-center shadow-2xs"
                   required
                 />
+                <div className="flex items-center justify-between gap-1 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setEndTime(addMinutesToTime(endTime, -15))}
+                    className="flex-1 py-1 text-[11px] font-bold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg cursor-pointer transition-colors"
+                  >
+                    -15m
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEndTime(addMinutesToTime(endTime, 15))}
+                    className="flex-1 py-1 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition-colors"
+                  >
+                    +15m
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -442,12 +526,19 @@ export function ShiftModal({
           <div className="bg-gradient-to-br from-slate-50 to-blue-50/50 rounded-2xl p-3.5 sm:p-4 border border-blue-100 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-slate-500">Durée calculée :</p>
-              <p className="text-sm sm:text-base font-bold text-slate-900">
-                {formatHours(totalHours)}
-              </p>
+              <div className="flex items-baseline space-x-1.5 mt-0.5">
+                <span className="text-base sm:text-lg font-extrabold text-slate-900">
+                  {formatHours(totalHours)}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">
+                  ({totalHours.toString().replace('.', ',')} h{dates.length > 1 ? ` pour ${dates.length} jours` : ''})
+                </span>
+              </div>
             </div>
             <div className="text-right">
-              <p className="text-xs font-medium text-slate-500">Rémunération ({currentMonitor.hourlyRate || 9.55} €/h) :</p>
+              <p className="text-xs font-medium text-slate-500">
+                Rémunération ({currentMonitor.hourlyRate || 9.55} €/h) :
+              </p>
               <p className="text-base sm:text-lg font-extrabold text-emerald-600">
                 {formatCurrency(totalEstimatedPay)}
               </p>

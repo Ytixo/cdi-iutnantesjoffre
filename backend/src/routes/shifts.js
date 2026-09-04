@@ -58,8 +58,12 @@ shiftsRouter.get('/', (req, res) => {
     shifts = shifts.filter(s => s.date >= startDate && s.date <= endDate);
   }
 
-  // Trier chronologiquement (date puis heure de début)
+  // Trier chronologiquement (date puis heure de début) et recalculer la durée exacte
   shifts.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+  shifts = shifts.map(s => ({
+    ...s,
+    durationHours: (s.startTime && s.endTime) ? calculateDuration(s.startTime, s.endTime) : (Number(s.durationHours) || 0)
+  }));
 
   const conflicts = findConflicts(shifts);
 

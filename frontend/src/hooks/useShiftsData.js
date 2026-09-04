@@ -62,7 +62,13 @@ export function useShiftsData() {
   const fetchShifts = useCallback(async () => {
     try {
       const { shifts: sList, source } = await dataService.getShifts(selectedMonth, selectedMonitorFilter);
-      setShifts(sList || []);
+      const normalizedShifts = (sList || []).map(s => ({
+        ...s,
+        durationHours: (s.startTime && s.endTime) 
+          ? calculateDuration(s.startTime, s.endTime) 
+          : (Number(s.durationHours) || 0)
+      }));
+      setShifts(normalizedShifts);
       setDataSource(source);
     } catch (err) {
       console.error('Erreur fetchShifts:', err);
