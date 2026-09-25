@@ -27,9 +27,11 @@ export function SettingsModal({
   onDeleteMonitor,
   onResetPassword
 }) {
-  const canManageTeam = currentUser?.role === 'manager' || currentUser?.canManage === true || currentUser?.name === 'Noah';
+  const isManager = currentUser?.role === 'manager' || currentUser?.isManager;
+  const canViewTeam = isManager || currentUser?.canViewManagement === true || currentUser?.name === 'Noah';
+  const isReadOnlyTeam = !isManager;
 
-  const [activeTab, setActiveTab] = useState(canManageTeam ? 'team' : 'general');
+  const [activeTab, setActiveTab] = useState(canViewTeam ? 'team' : 'general');
   const [cdiName, setCdiName] = useState(settings?.cdiName || 'CDI — IUT de Nantes');
   const [monitorsState, setMonitorsState] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -71,10 +73,8 @@ export function SettingsModal({
     setSuccessMsg('');
 
     try {
-      await onUpdateSettings({ cdiName });
-
-      // Si manageur ou Noah, on sauvegarde aussi les modifications de profil moniteurs
-      if (canManageTeam) {
+      if (isManager) {
+        await onUpdateSettings({ cdiName });
         for (const m of monitorsState) {
           await onUpdateMonitor(m.id, {
             name: m.name,
@@ -85,7 +85,7 @@ export function SettingsModal({
           });
         }
       } else {
-        // Le moniteur peut modifier sa propre couleur et son avatar
+        // Le moniteur (Noah ou Lucas) peut modifier sa propre couleur et son avatar
         const myProfile = monitorsState.find(m => m.id === currentUser?.id);
         if (myProfile) {
           await onUpdateMonitor(myProfile.id, {
@@ -205,13 +205,13 @@ export function SettingsModal({
           </div>
           
           <h2 className="text-lg sm:text-xl font-bold">
-            {canManageTeam ? 'Gestion de l\'Équipe CDI & Réglages' : 'Préférences & CDI'}
+            {isManager ? 'Gestion de l\'Équipe CDI & Réglages' : canViewTeam ? 'Organisation de l\'Équipe & Préférences' : 'Préférences & CDI'}
           </h2>
         </div>
 
         {/* Tab Navigation */}
         <div className="flex items-center space-x-2 px-5 pt-4 pb-1 border-b border-slate-100 shrink-0">
-          {canManageTeam && (
+          {canViewTeam && (
             <button
               onClick={() => setActiveTab('team')}
               className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -221,7 +221,7 @@ export function SettingsModal({
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Gestion de l'Équipe ({monitorsState.length})</span>
+              <span>{isManager ? "Gestion de l'Équipe" : "Membres de l'Équipe"} ({monitorsState.length})</span>
             </button>
           )}
 
@@ -254,18 +254,30 @@ export function SettingsModal({
           )}
         </div>
 
-        {/* TAB 1: GESTION DE L'ÉQUIPE (Manageuses & Noah) */}
-        {activeTab === 'team' && canManageTeam && (
+        {/* TAB 1: GESTION DE L'ÉQUIPE (Manageuses & Noah en consultation) */}
+        {activeTab === 'team' && canViewTeam && (
           <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
             
-            {/* Action Bar : Bouton Ajouter un membre */}
+            {/* Bannière Mode Consultation pour Noah */}
+            {isReadOnlyTeam && (
+              <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl flex items-center space-x-2.5 text-xs text-blue-900 font-medium">
+                <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>
+                  <strong>Accès Consultation :</strong> Vous pouvez consulter l'organisation et la composition de l'équipe du CDI. Seules les manageuses (Virginie & Kristell) sont autorisées à ajouter des membres, modifier les fiches ou réinitialiser les accès.
+                </span>
+              </div>
+            )}
+
+            {/* Action Bar : Bouton Ajouter un membre (Manageuses uniquement) */}
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Membres de l'Équipe</h3>
-                <p className="text-xs text-slate-500">Ajoutez, modifiez ou réinitialisez les accès des moniteurs et manageuses.</p>
+                <p className="text-xs text-slate-500">
+                  {isManager ? 'Ajoutez, modifiez ou réinitialisez les accès des moniteurs et manageuses.' : 'Consultez la liste des membres, rôles et taux associés.'}
+                </p>
               </div>
 
-              {!isAddingMonitor && (
+              {isManager && !isAddingMonitor && (
                 <button
                   type="button"
                   onClick={() => setIsAddingMonitor(true)}
@@ -453,7 +465,10 @@ export function SettingsModal({
                           type="text"
                           value={m.name}
                           onChange={(e) => handleMonitorChange(m.id, 'name', e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                          disabled={isReadOnlyTeam}
+                          className={`w-full border rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-hidden ${
+                            isReadOnlyTeam ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-90' : 'bg-white border-slate-200 focus:ring-2 focus:ring-blue-500'
+                          }`}
                           required
                         />
                       </div>
@@ -468,7 +483,10 @@ export function SettingsModal({
                             step="0.01"
                             value={m.hourlyRate}
                             onChange={(e) => handleMonitorChange(m.id, 'hourlyRate', e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 pr-8"
+                            disabled={isReadOnlyTeam}
+                            className={`w-full border rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-hidden pr-8 ${
+                              isReadOnlyTeam ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-90' : 'bg-white border-slate-200 focus:ring-2 focus:ring-blue-500'
+                            }`}
                             required
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
@@ -486,13 +504,17 @@ export function SettingsModal({
                       <div className="flex flex-wrap gap-2">
                         {PRESET_COLORS.map(c => {
                           const isSelected = m.color === c.hex;
+                          const canChangeColor = isManager || m.id === currentUser?.id;
                           return (
                             <button
                               key={c.hex}
                               type="button"
+                              disabled={!canChangeColor}
                               onClick={() => handleMonitorChange(m.id, 'color', c.hex)}
                               style={{ backgroundColor: c.hex }}
-                              className={`w-6 h-6 rounded-full transition-all flex items-center justify-center cursor-pointer ${
+                              className={`w-6 h-6 rounded-full transition-all flex items-center justify-center ${
+                                canChangeColor ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                              } ${
                                 isSelected ? 'ring-2 ring-slate-800 scale-110' : 'opacity-70 hover:opacity-100'
                               }`}
                             >
@@ -503,26 +525,28 @@ export function SettingsModal({
                       </div>
                     </div>
 
-                    {/* Actions d'administration pour ce membre */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => handleResetUserPassword(m.id, m.name)}
-                        className="text-amber-700 hover:text-amber-900 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
-                      >
-                        <KeyRound className="w-3.5 h-3.5" />
-                        <span>Réinitialiser mot de passe</span>
-                      </button>
+                    {/* Actions d'administration pour ce membre (Manageuses uniquement) */}
+                    {isManager && (
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => handleResetUserPassword(m.id, m.name)}
+                          className="text-amber-700 hover:text-amber-900 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                          <span>Réinitialiser mot de passe</span>
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteUser(m.id, m.name)}
-                        className="text-red-600 hover:text-red-800 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Supprimer</span>
-                      </button>
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(m.id, m.name)}
+                          className="text-red-600 hover:text-red-800 font-semibold flex items-center gap-1 hover:underline cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Supprimer</span>
+                        </button>
+                      </div>
+                    )}
 
                   </div>
                 );
@@ -538,15 +562,17 @@ export function SettingsModal({
               >
                 Fermer
               </button>
-              <button
-                type="button"
-                onClick={handleSaveGeneral}
-                disabled={saving}
-                className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
-              >
-                <Check className="w-4 h-4" />
-                <span>{saving ? 'Enregistrement...' : 'Enregistrer les modifications'}</span>
-              </button>
+              {isManager && (
+                <button
+                  type="button"
+                  onClick={handleSaveGeneral}
+                  disabled={saving}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{saving ? 'Enregistrement...' : 'Enregistrer les modifications'}</span>
+                </button>
+              )}
             </div>
 
           </div>
@@ -557,14 +583,14 @@ export function SettingsModal({
           <form onSubmit={handleSaveGeneral} className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
             
             {/* Notice pour les moniteurs sans droits d'administration */}
-            {!canManageTeam && (
+            {!isManager && (
               <div className="bg-blue-50 border border-blue-200 p-3.5 rounded-2xl text-xs text-blue-800 space-y-1">
                 <div className="font-bold flex items-center gap-1.5 text-blue-900">
                   <ShieldCheck className="w-4 h-4 text-blue-600" />
                   <span>Compte Moniteur CDI ({currentUser?.name})</span>
                 </div>
                 <p className="text-[11px] text-blue-700 leading-relaxed">
-                  Vous avez accès au calendrier, à la saisie de vos heures et à toutes les statistiques. L'ajout ou la suppression de moniteurs est réservé aux manageurs (Virginie, Kristell & Noah).
+                  Vous avez accès au calendrier, à la saisie de vos heures, au relevé et à la consultation de votre vrai salaire déclaré aux RH. L'administration de l'équipe et la validation officielle des déclarations ASF sont réservées aux manageuses (Virginie & Kristell).
                 </p>
               </div>
             )}
@@ -578,9 +604,9 @@ export function SettingsModal({
                 type="text"
                 value={cdiName}
                 onChange={(e) => setCdiName(e.target.value)}
-                disabled={!canManageTeam}
+                disabled={!isManager}
                 className={`w-full border rounded-xl px-3.5 py-2 text-sm text-slate-800 font-semibold focus:outline-hidden ${
-                  canManageTeam ? 'bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white' : 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-80'
+                  isManager ? 'bg-slate-50 border-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white' : 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-80'
                 }`}
                 required
               />

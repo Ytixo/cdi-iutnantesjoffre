@@ -8,10 +8,12 @@ export function ShiftsTable({
   stats,
   selectedMonth,
   settings,
+  currentUser,
   onSelectShift,
   onDeleteShift,
   onOpenAddModal,
   onOpenAttendance,
+  onOpenAsfModal,
   conflicts = []
 }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,6 +116,44 @@ export function ShiftsTable({
           </button>
         </div>
 
+      </div>
+
+      {/* Bannière Synthèse ASF & Rémunérations RH */}
+      <div className="bg-slate-50/90 px-5 py-3 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Planning :</span>
+            <span className="font-extrabold text-slate-800">
+              {formatHours(totalFilteredHours)}
+            </span>
+            <span className="text-slate-400">({formatCurrency(totalFilteredPay)})</span>
+          </div>
+
+          <div className="h-4 w-px bg-slate-300 hidden sm:block" />
+
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-extrabold text-emerald-800 uppercase tracking-wider">🏢 Déclaré aux RH (ASF) :</span>
+            <span className="font-extrabold text-emerald-700">
+              {filterMonitorId !== 'ALL' 
+                ? (stats?.monitors?.find(m => m.monitorId === filterMonitorId)?.formattedAsfHours || formatHours(totalFilteredHours))
+                : (stats?.formattedTotalAsfHours || formatHours(totalFilteredHours))}
+            </span>
+            <span className="font-extrabold text-emerald-600">
+              ({filterMonitorId !== 'ALL'
+                ? formatCurrency(stats?.monitors?.find(m => m.monitorId === filterMonitorId)?.asfSalary || totalFilteredPay)
+                : formatCurrency(stats?.totalAsfBudget || totalFilteredPay)})
+            </span>
+          </div>
+        </div>
+
+        {currentUser?.role === 'manager' && onOpenAsfModal && (
+          <button
+            onClick={() => onOpenAsfModal(filterMonitorId !== 'ALL' ? filterMonitorId : undefined)}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-xl border border-blue-200 text-xs transition-colors cursor-pointer"
+          >
+            <span>📋 Gérer l'ASF (RH)</span>
+          </button>
+        )}
       </div>
 
       {/* Table */}

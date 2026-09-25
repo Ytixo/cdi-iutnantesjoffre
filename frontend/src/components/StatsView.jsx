@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart3, TrendingUp, Calendar, Clock, Euro, Users, Sparkles, Award, UserCheck, ChevronRight } from 'lucide-react';
+import { BarChart3, TrendingUp, Calendar, Clock, Euro, Users, Sparkles, Award, UserCheck, ChevronRight, FileCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 import { formatCurrency, formatHours, MONTHS_FR, formatDateShort } from '../utils/timeUtils';
 import { SalaryStatsCard } from './SalaryStatsCard';
 
@@ -7,8 +7,10 @@ export function StatsView({
   stats,
   monitors = [],
   selectedMonth,
+  currentUser,
   onUpdateMonitorRate,
-  onOpenSettings
+  onOpenSettings,
+  onOpenAsfModal
 }) {
   const [activeStatsTab, setActiveStatsTab] = useState('all'); // 'all', 'attendance', 'salary'
 
@@ -321,9 +323,114 @@ export function StatsView({
           <SalaryStatsCard
             stats={stats}
             monitors={monitors}
+            currentUser={currentUser}
             onUpdateMonitorRate={onUpdateMonitorRate}
             onOpenSettings={onOpenSettings}
+            onOpenAsfModal={onOpenAsfModal}
           />
+
+          {/* Tableau Comparatif Planning vs Déclarations RH (ASF) */}
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FileCheck className="w-5 h-5 text-blue-600" />
+                <h4 className="text-sm font-bold text-slate-900">
+                  Bordereau RH : Heures & Salaires Déclarés aux RH (ASF) — {monthName} {yearStr}
+                </h4>
+              </div>
+              <span className="text-[11px] font-medium text-slate-500 hidden sm:inline">
+                Comparatif de transparence pour les moniteurs et le service RH
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="p-3.5 pl-5">Moniteur</th>
+                    <th className="p-3.5">Heures Planning</th>
+                    <th className="p-3.5">Salaire Estimé</th>
+                    <th className="p-3.5">Heures Déclarées RH (ASF)</th>
+                    <th className="p-3.5">Vrai Salaire Brut RH</th>
+                    <th className="p-3.5">Écart Constaté</th>
+                    <th className="p-3.5">Statut Déclaration</th>
+                    {currentUser?.role === 'manager' && onOpenAsfModal && (
+                      <th className="p-3.5 pr-5 text-right">Action</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(stats.monitors || []).map(m => {
+                    const hasAsf = m.hasAsf;
+                    return (
+                      <tr key={m.monitorId} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="p-3.5 pl-5 font-bold text-slate-900 flex items-center gap-2">
+                          <span className="text-base">{m.avatar || '👨‍🎓'}</span>
+                          <span>{m.name}</span>
+                        </td>
+                        <td className="p-3.5 font-medium text-slate-700">
+                          {m.formattedHours} ({m.totalHours} h)
+                        </td>
+                        <td className="p-3.5 font-bold text-slate-700">
+                          {formatCurrency(m.estimatedSalary)}
+                        </td>
+                        <td className="p-3.5 font-extrabold text-emerald-800">
+                          {m.formattedAsfHours} ({m.asfHours} h)
+                        </td>
+                        <td className="p-3.5 font-extrabold text-emerald-600 text-sm">
+                          {formatCurrency(m.asfSalary)}
+                        </td>
+                        <td className="p-3.5">
+                          {m.hoursDelta !== 0 ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ${
+                              m.hoursDelta > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {m.hoursDelta > 0 ? `+${m.hoursDelta}` : m.hoursDelta} h ({m.salaryDelta > 0 ? `+${formatCurrency(m.salaryDelta)}` : formatCurrency(m.salaryDelta)})
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-medium">Conforme (0h)</span>
+                          )}
+                        </td>
+                        <td className="p-3.5">
+                          {hasAsf ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Déclaré aux RH</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                              <span>En attente de saisie</span>
+                            </span>
+                          )}
+                        </td>
+                        {currentUser?.role === 'manager' && onOpenAsfModal && (
+                          <td className="p-3.5 pr-5 text-right">
+                            <button
+                              onClick={() => onOpenAsfModal(m.monitorId)}
+                              className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg text-xs transition-colors cursor-pointer"
+                            >
+                              {hasAsf ? 'Modifier' : 'Déclarer'}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 font-bold text-slate-900 border-t-2 border-slate-200 text-xs sm:text-sm">
+                    <td className="p-3.5 pl-5">Total CDI</td>
+                    <td className="p-3.5 text-blue-700 font-extrabold">{stats.formattedTotalCdiHours}</td>
+                    <td className="p-3.5 text-slate-800 font-extrabold">{formatCurrency(stats.totalCdiBudget)}</td>
+                    <td className="p-3.5 text-emerald-800 font-extrabold">{stats.formattedTotalAsfHours || stats.formattedTotalCdiHours}</td>
+                    <td className="p-3.5 text-emerald-600 font-extrabold">{formatCurrency(stats.totalAsfBudget || stats.totalCdiBudget)}</td>
+                    <td colSpan={currentUser?.role === 'manager' && onOpenAsfModal ? 3 : 2}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
 
         </div>
       )}

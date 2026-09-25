@@ -6,6 +6,7 @@
       "normalizedName": "virginie",
       "role": "manager",
       "canManage": true,
+      "canViewManagement": true,
       "avatar": "👩‍🏫",
       "color": "#DB2777",
       "hourlyRate": 9.55,
@@ -18,6 +19,7 @@
       "normalizedName": "kristell",
       "role": "manager",
       "canManage": true,
+      "canViewManagement": true,
       "avatar": "👩‍🏫",
       "color": "#D97706",
       "hourlyRate": 9.55,
@@ -29,7 +31,8 @@
       "name": "Noah",
       "normalizedName": "noah",
       "role": "monitor",
-      "canManage": true,
+      "canManage": false,
+      "canViewManagement": true,
       "avatar": "👨‍🎓",
       "color": "#7C3AED",
       "bgLight": "#EFF6FF",
@@ -71,26 +74,6 @@
       "border": "#6EE7B7",
       "hourlyRate": 9.55,
       "avatar": "👨‍🎓"
-    },
-    {
-      "id": "user-virginie",
-      "name": "Virginie",
-      "role": "manager",
-      "color": "#DB2777",
-      "bgLight": "#FDF2F8",
-      "border": "#F472B6",
-      "hourlyRate": 9.55,
-      "avatar": "👩‍🏫"
-    },
-    {
-      "id": "user-kristell",
-      "name": "Kristell",
-      "role": "manager",
-      "color": "#D97706",
-      "bgLight": "#FFFBEB",
-      "border": "#FBBF24",
-      "hourlyRate": 9.55,
-      "avatar": "👩‍🏫"
     }
   ],
   "settings": {
@@ -100,5 +83,6 @@
     "allowOverlaps": false,
     "currency": "€"
   },
-  "shifts": []
+  "shifts": [],
+  "asfRecords": []
 }

@@ -94,6 +94,41 @@ function mapMonitorFromSupabase(row) {
   };
 }
 
+function mapAsfFromSupabase(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    monitorId: row.monitor_id,
+    month: row.month,
+    asfHours: Number(row.asf_hours) || 0,
+    hourlyRate: Number(row.hourly_rate) || 9.55,
+    asfSalary: Number(row.asf_salary) || 0,
+    status: row.status || 'declared',
+    declaredBy: row.declared_by || 'Manageuse',
+    declaredAt: row.declared_at,
+    notes: row.notes || '',
+    createdAt: row.created_at
+  };
+}
+
+function mapAsfToSupabase(rec) {
+  return {
+    id: rec.id || `asf-${rec.monitorId}-${rec.month}`,
+    monitor_id: rec.monitorId,
+    month: rec.month,
+    asf_hours: Number(rec.asfHours) || 0,
+    hourly_rate: Number(rec.hourlyRate) || 9.55,
+    asf_salary: Number(rec.asfSalary) || 0,
+    status: rec.status || 'declared',
+    declared_by: rec.declaredBy || 'Manageuse',
+    declared_at: rec.declaredAt || new Date().toISOString(),
+    notes: rec.notes || '',
+    updated_at: new Date().toISOString()
+  };
+}
+
+const LOCAL_STORAGE_KEY_ASF = 'cdi_asf_records';
+
 export const dataService = {
   // 1. Récupérer Moniteurs & Paramètres depuis Supabase
   async getMonitorsAndSettings() {
@@ -280,5 +315,161 @@ export const dataService = {
   // 10. Réinitialiser le mot de passe
   async resetPassword(id) {
     return await authService.resetPassword(id);
+  },
+
+  // 11. Récupérer les déclarations ASF (Attestation de Service Fait / RH)
+  async getAsfRecords(monthStr) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        let query = supabase
+          .from('asf_records')
+          .select('*')
+          .order('month', { ascending: false });
+
+        if (monthStr) {
+          query = query.eq('month', monthStr);
+        }
+
+        const { data, error } = await query;
+        if (!error && data) {
+          const records = data.map(mapAsfFromSupabase);
+          return { asfRecords: records, source: 'supabase' };
+        }
+      } catch (err) {
+        console.error('Exception Supabase getAsfRecords:', err);
+      }
+    }
+
+    // Fallback API backend locale Express
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (isLocalhost) {
+      try {
+        const url = monthStr ? `/api/asf?month=${monthStr}` : '/api/asf';
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.asfRecords)) {
+            return { asfRecords: data.asfRecords, source: 'api' };
+          }
+        }
+      } catch (err) {
+        console.error('Exception API getAsfRecords:', err);
+      }
+    }
+
+    // Fallback LocalStorage
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY_ASF);
+      let list = raw ? JSON.parse(raw) : [];
+      if (monthStr) {
+        list = list.filter(r => r.month === monthStr);
+      }
+      return { asfRecords: list, source: 'local' };
+    } catch (e) {
+      return { asfRecords: [], source: 'local' };
+    }
+  },
+
+  // 12. Enregistrer / Modifier une déclaration ASF
+  async saveAsfRecord(record) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const row = mapAsfToSupabase(record);
+        const { data, error } = await supabase
+          .from('asf_records')
+          .upsert(row, { onConflict: 'monitor_id,month' })
+          .select()
+          .maybeSingle();
+
+        if (!error && data) {
+          return { success: true, asfRecord: mapAsfFromSupabase(data) };
+        }
+        console.error('Erreur Supabase saveAsfRecord:', error);
+      } catch (err) {
+        console.error('Exception Supabase saveAsfRecord:', err);
+      }
+    }
+
+    // Fallback API backend locale Express
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (isLocalhost) {
+      try {
+        const res = await fetch('/api/asf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(record)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.asfRecord) {
+            return { success: true, asfRecord: data.asfRecord };
+          }
+        }
+      } catch (err) {
+        console.error('Exception API saveAsfRecord:', err);
+      }
+    }
+
+    // Fallback LocalStorage
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY_ASF);
+      let list = raw ? JSON.parse(raw) : [];
+      const idx = list.findIndex(r => r.monitorId === record.monitorId && r.month === record.month);
+      const asfSalary = Number((Number(record.asfHours || 0) * Number(record.hourlyRate || 9.55)).toFixed(2));
+      const updated = {
+        id: record.id || `asf-${record.monitorId}-${record.month}`,
+        monitorId: record.monitorId,
+        month: record.month,
+        asfHours: Number(record.asfHours) || 0,
+        hourlyRate: Number(record.hourlyRate) || 9.55,
+        asfSalary,
+        status: record.status || 'declared',
+        declaredBy: record.declaredBy || 'Manageuse',
+        declaredAt: record.declaredAt || new Date().toISOString(),
+        notes: record.notes || '',
+        updatedAt: new Date().toISOString()
+      };
+
+      if (idx !== -1) {
+        list[idx] = updated;
+      } else {
+        list.push(updated);
+      }
+      localStorage.setItem(LOCAL_STORAGE_KEY_ASF, JSON.stringify(list));
+      return { success: true, asfRecord: updated };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
+  // 13. Supprimer une déclaration ASF
+  async deleteAsfRecord(id) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('asf_records').delete().eq('id', id);
+      } catch (e) {}
+    }
+
+    try {
+      await fetch(`/api/asf/${id}`, { method: 'DELETE' });
+    } catch (e) {}
+
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY_ASF);
+      if (raw) {
+        let list = JSON.parse(raw);
+        list = list.filter(r => r.id !== id);
+        localStorage.setItem(LOCAL_STORAGE_KEY_ASF, JSON.stringify(list));
+      }
+    } catch (e) {}
+
+    return { success: true };
   }
 };

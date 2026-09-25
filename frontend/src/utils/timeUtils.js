@@ -157,7 +157,16 @@ export function exportToCSV(shifts, monitors, monthStr) {
     ];
   });
 
-  const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+  const csvContent = '\uFEFF' + [
+    headers.join(';'),
+    ...rows.map(r => r.join(';')),
+    '',
+    'SYNTHESE MENSUELLE ET DECLARATIONS RH (ASF)',
+    'Moniteur;Heures Planning;Salaire Planning (€);Heures Déclarées RH (ASF);Vrai Salaire Brut RH (€);Statut Déclaration;Transmis par',
+    ...(stats?.monitors || []).map(m => 
+      `"${m.name}";${m.totalHours.toString().replace('.', ',')};${m.estimatedSalary.toFixed(2).replace('.', ',')};${(m.hasAsf ? m.asfHours : m.totalHours).toString().replace('.', ',')};${(m.hasAsf ? m.asfSalary : m.estimatedSalary).toFixed(2).replace('.', ',')};"${m.hasAsf ? 'Déclaré aux RH' : 'En attente'}";"${m.asfDeclaredBy || 'Manageuse'}"`
+    )
+  ].join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -180,29 +189,38 @@ export function exportToPDF(shifts, monitors, stats, monthStr, settings) {
 
   doc.setFontSize(11);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Relevé d'activité & rémunérations — Période : ${monthName} ${year}`, 14, 25);
+  doc.text(`Relevé d'activité, rémunérations & Attestation ASF — Période : ${monthName} ${year}`, 14, 25);
   doc.text(`Généré le : ${new Date().toLocaleDateString('fr-FR')}`, 14, 31);
 
-  // Synthèse rémunérations & Fréquentation
+  // Synthèse rémunérations, ASF & Fréquentation
   doc.setDrawColor(226, 232, 240);
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(14, 36, 182, 38, 3, 3, 'FD');
+  doc.roundedRect(14, 36, 182, 42, 3, 3, 'FD');
 
   doc.setFontSize(10);
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.text('Synthèse mensuelle (Heures, Salaires & Fréquentation)', 20, 43);
+  doc.text('Synthèse mensuelle : Planning constaté vs Vraies Heures Déclarées RH (ASF)', 20, 43);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   let yPos = 51;
   (stats?.monitors || []).forEach((m, idx) => {
     const x = idx === 0 ? 20 : 105;
-    doc.text(`• ${m.name} : ${m.formattedHours} (${m.totalHours}h) à ${m.hourlyRate.toFixed(2)}€/h = ${m.estimatedSalary.toFixed(2)} €  (${m.totalVisitors || 0} entrées)`, x, yPos);
+    doc.text(`• ${m.name} : Planning ${m.formattedHours} (${m.estimatedSalary.toFixed(2)} €)`, x, yPos);
+    if (m.hasAsf) {
+      doc.setTextColor(5, 150, 105); // Vert émeraude
+      doc.text(`  -> Déclaré RH (ASF) : ${m.formattedAsfHours} = ${m.asfSalary.toFixed(2)} € (${m.asfDeclaredBy || 'Manageuse'})`, x, yPos + 5);
+      doc.setTextColor(15, 23, 42);
+    } else {
+      doc.setTextColor(217, 119, 6); // Ambre
+      doc.text(`  -> En attente saisie ASF RH (estimé : ${m.estimatedSalary.toFixed(2)} €)`, x, yPos + 5);
+      doc.setTextColor(15, 23, 42);
+    }
   });
 
   doc.setFont('helvetica', 'bold');
-  doc.text(`Total Heures : ${stats?.formattedTotalCdiHours || '0h00'}  —  Budget : ${stats?.totalCdiBudget?.toFixed(2) || '0.00'} €  —  Total Étudiants accueillis : ${stats?.totalMonthVisitors || 0} (${stats?.avgVisitorsPerShift || 0}/créneau)`, 20, 65);
+  doc.text(`Total Planning : ${stats?.formattedTotalCdiHours || '0h00'} (${stats?.totalCdiBudget?.toFixed(2) || '0.00'} €)  —  Total Déclaré RH : ${stats?.formattedTotalAsfHours || stats?.formattedTotalCdiHours} (${stats?.totalAsfBudget?.toFixed(2) || stats?.totalCdiBudget?.toFixed(2)} €)`, 20, 71);
 
   // Tableau détaillé des créneaux
   const tableData = shifts.map(shift => {

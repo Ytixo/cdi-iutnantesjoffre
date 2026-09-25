@@ -20,6 +20,7 @@ export const INITIAL_USERS = [
     normalizedName: 'virginie',
     role: 'manager',
     canManage: true,
+    canViewManagement: true,
     avatar: '👩‍🏫',
     color: '#DB2777',
     hourlyRate: 9.55,
@@ -32,6 +33,7 @@ export const INITIAL_USERS = [
     normalizedName: 'kristell',
     role: 'manager',
     canManage: true,
+    canViewManagement: true,
     avatar: '👩‍🏫',
     color: '#D97706',
     hourlyRate: 9.55,
@@ -43,7 +45,8 @@ export const INITIAL_USERS = [
     name: 'Noah',
     normalizedName: 'noah',
     role: 'monitor',
-    canManage: true,
+    canManage: false,
+    canViewManagement: true,
     avatar: '👨‍🎓',
     color: '#7C3AED',
     bgLight: '#EFF6FF',
@@ -101,7 +104,8 @@ const DEFAULT_DATA = {
     allowOverlaps: false,
     currency: '€'
   },
-  shifts: []
+  shifts: [],
+  asfRecords: []
 };
 
 // Initialiser le fichier si absent
@@ -115,21 +119,33 @@ export function readDb() {
     const data = JSON.parse(raw);
     let changed = false;
 
+    // S'assurer de la présence du tableau asfRecords
+    if (!data.asfRecords || !Array.isArray(data.asfRecords)) {
+      data.asfRecords = [];
+      changed = true;
+    }
+
     // Migration automatique : si users absent ou incomplet
     if (!data.users || !Array.isArray(data.users) || data.users.length === 0) {
       data.users = [...INITIAL_USERS];
       changed = true;
     } else {
-      // S'assurer de la mise à jour pour Kristell et Noah
+      // S'assurer de la mise à jour pour Kristell, Noah et manageuses
       data.users = data.users.map(u => {
         if (normalizeName(u.name) === 'christelle') {
           changed = true;
-          return { ...u, name: 'Kristell', normalizedName: 'kristell' };
+          return { ...u, name: 'Kristell', normalizedName: 'kristell', role: 'manager', canManage: true, canViewManagement: true };
+        }
+        if (normalizeName(u.name) === 'virginie') {
+          if (!u.canViewManagement) {
+            changed = true;
+            return { ...u, role: 'manager', canManage: true, canViewManagement: true };
+          }
         }
         if (normalizeName(u.name) === 'noah') {
-          if (u.role !== 'monitor' || !u.canManage) {
+          if (u.role !== 'monitor' || u.canManage !== false || !u.canViewManagement) {
             changed = true;
-            return { ...u, role: 'monitor', canManage: true };
+            return { ...u, role: 'monitor', canManage: false, canViewManagement: true };
           }
         }
         return u;

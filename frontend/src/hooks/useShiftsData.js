@@ -22,6 +22,7 @@ export function useShiftsData() {
   const [teamMembers, setTeamMembers] = useState([]);
   const [settings, setSettings] = useState({});
   const [shifts, setShifts] = useState([]);
+  const [asfRecords, setAsfRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSynced, setIsSynced] = useState(true);
   const [dataSource, setDataSource] = useState('local'); // 'supabase', 'api', 'local'
@@ -75,11 +76,21 @@ export function useShiftsData() {
     }
   }, [selectedMonth, selectedMonitorFilter]);
 
+  // Charger les déclarations ASF (RH) pour le mois sélectionné
+  const fetchAsfRecords = useCallback(async () => {
+    try {
+      const { asfRecords: list } = await dataService.getAsfRecords(selectedMonth);
+      setAsfRecords(list || []);
+    } catch (err) {
+      console.error('Erreur fetchAsfRecords:', err);
+    }
+  }, [selectedMonth]);
+
   const refreshAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchMonitorsAndSettings(), fetchShifts()]);
+    await Promise.all([fetchMonitorsAndSettings(), fetchShifts(), fetchAsfRecords()]);
     setLoading(false);
-  }, [fetchMonitorsAndSettings, fetchShifts]);
+  }, [fetchMonitorsAndSettings, fetchShifts, fetchAsfRecords]);
 
   // Détection des conflits / chevauchements
   const conflicts = useMemo(() => {
@@ -117,6 +128,18 @@ export function useShiftsData() {
       const totalVisitors = mShifts.reduce((acc, s) => acc + (Number(s.visitorsCount) || 0), 0);
       const avgVisitors = mShifts.length > 0 ? Number((totalVisitors / mShifts.length).toFixed(1)) : 0;
 
+      // Déclaration ASF (heures et salaire déclarés aux RH)
+      const asf = (asfRecords || []).find(r => r.monitorId === m.id && r.month === selectedMonth);
+      const hasAsf = Boolean(asf && asf.asfHours !== undefined);
+      const asfHours = hasAsf ? Number(asf.asfHours) : totalHours;
+      const asfSalary = hasAsf ? Number(asf.asfSalary) : estimatedSalary;
+      const asfStatus = hasAsf ? (asf.status || 'declared') : 'pending';
+      const asfDeclaredBy = asf?.declaredBy || null;
+      const asfDeclaredAt = asf?.declaredAt || null;
+      const asfNotes = asf?.notes || '';
+      const hoursDelta = Number((asfHours - totalHours).toFixed(2));
+      const salaryDelta = Number((asfSalary - estimatedSalary).toFixed(2));
+
       return {
         monitorId: m.id,
         name: m.name,
@@ -129,12 +152,26 @@ export function useShiftsData() {
         estimatedSalary,
         totalVisitors,
         avgVisitors,
-        shifts: mShifts
+        shifts: mShifts,
+        // Données officielles RH / ASF
+        hasAsf,
+        asfRecord: asf || null,
+        asfHours,
+        formattedAsfHours: formatHours(asfHours),
+        asfSalary,
+        asfStatus,
+        asfDeclaredBy,
+        asfDeclaredAt,
+        asfNotes,
+        hoursDelta,
+        salaryDelta
       };
     });
 
     const totalCdiHours = Number(monitorStats.reduce((acc, m) => acc + m.totalHours, 0).toFixed(2));
     const totalCdiBudget = Number(monitorStats.reduce((acc, m) => acc + m.estimatedSalary, 0).toFixed(2));
+    const totalAsfHours = Number(monitorStats.reduce((acc, m) => acc + m.asfHours, 0).toFixed(2));
+    const totalAsfBudget = Number(monitorStats.reduce((acc, m) => acc + m.asfSalary, 0).toFixed(2));
     const totalMonthVisitors = monthShifts.reduce((acc, s) => acc + (Number(s.visitorsCount) || 0), 0);
     const avgVisitorsPerShift = monthShifts.length > 0 ? Number((totalMonthVisitors / monthShifts.length).toFixed(1)) : 0;
 
@@ -204,13 +241,16 @@ export function useShiftsData() {
       totalCdiHours,
       formattedTotalCdiHours: formatHours(totalCdiHours),
       totalCdiBudget,
+      totalAsfHours,
+      formattedTotalAsfHours: formatHours(totalAsfHours),
+      totalAsfBudget,
       totalMonthVisitors,
       avgVisitorsPerShift,
       peakDay,
       dayDistribution,
       dailyAttendance
     };
-  }, [monitors, shifts, selectedMonth]);
+  }, [monitors, shifts, asfRecords, selectedMonth]);
 
   // Initialisation et Temps Réel (Supabase ou SSE ou Local)
   useEffect(() => {
@@ -229,6 +269,9 @@ export function useShiftsData() {
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
           fetchMonitorsAndSettings();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'asf_records' }, () => {
+          fetchAsfRecords();
         })
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
@@ -252,6 +295,7 @@ export function useShiftsData() {
             try {
               const payload = JSON.parse(event.data);
               if (payload.type === 'SHIFTS_UPDATED') fetchShifts();
+              if (payload.type === 'ASF_UPDATED') fetchAsfRecords();
               if (payload.type === 'MONITORS_UPDATED' || payload.type === 'SETTINGS_UPDATED' || payload.type === 'USERS_UPDATED') {
                 fetchMonitorsAndSettings();
               }
@@ -335,6 +379,18 @@ export function useShiftsData() {
     return await updateShift(shiftId, { visitorsCount: Number(count) });
   };
 
+  const saveAsfRecord = async (record) => {
+    const res = await dataService.saveAsfRecord(record);
+    await fetchAsfRecords();
+    return res;
+  };
+
+  const deleteAsfRecord = async (id) => {
+    const res = await dataService.deleteAsfRecord(id);
+    await fetchAsfRecords();
+    return res;
+  };
+
   return {
     currentUser,
     setCurrentUser,
@@ -343,6 +399,7 @@ export function useShiftsData() {
     teamMembers,
     settings,
     shifts,
+    asfRecords,
     conflicts,
     stats,
     loading,
@@ -363,6 +420,9 @@ export function useShiftsData() {
     resetPassword,
     updateSettings,
     updateVisitorsCount,
+    saveAsfRecord,
+    deleteAsfRecord,
+    refreshAsf: fetchAsfRecords,
     refreshAll
   };
 }

@@ -10,6 +10,7 @@ import { SalaryStatsCard } from './components/SalaryStatsCard';
 import { ShiftModal } from './components/ShiftModal';
 import { SettingsModal } from './components/SettingsModal';
 import { AttendanceModal } from './components/AttendanceModal';
+import { AsfModal } from './components/AsfModal';
 import { ConflictAlert } from './components/ConflictAlert';
 import { Loader2 } from 'lucide-react';
 
@@ -22,6 +23,7 @@ export function App() {
     teamMembers,
     settings,
     shifts,
+    asfRecords,
     conflicts,
     stats,
     loading,
@@ -41,15 +43,25 @@ export function App() {
     deleteMonitor,
     resetPassword,
     updateSettings,
-    updateVisitorsCount
+    updateVisitorsCount,
+    saveAsfRecord,
+    deleteAsfRecord
   } = useShiftsData();
 
   const [activeTab, setActiveTab] = useState('calendar'); // 'calendar', 'table', 'stats'
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [isAsfModalOpen, setIsAsfModalOpen] = useState(false);
+  const [asfModalMonitorId, setAsfModalMonitorId] = useState(null);
   const [editingShift, setEditingShift] = useState(null);
   const [attendanceTarget, setAttendanceTarget] = useState({ shift: null, monitor: null });
+
+  // Ouvrir la modale ASF
+  const handleOpenAsfModal = (monitorId) => {
+    setAsfModalMonitorId(monitorId || null);
+    setIsAsfModalOpen(true);
+  };
 
   // Si l'utilisateur n'est pas connecté, afficher l'écran d'authentification
   if (!currentUser) {
@@ -151,8 +163,10 @@ export function App() {
                 <SalaryStatsCard
                   stats={stats}
                   monitors={monitors}
+                  currentUser={currentUser}
                   onUpdateMonitorRate={handleUpdateMonitorRate}
                   onOpenSettings={() => setIsSettingsModalOpen(true)}
+                  onOpenAsfModal={handleOpenAsfModal}
                 />
                 <CalendarView
                   selectedMonth={selectedMonth}
@@ -174,6 +188,7 @@ export function App() {
                 stats={stats}
                 selectedMonth={selectedMonth}
                 settings={settings}
+                currentUser={currentUser}
                 onSelectShift={handleSelectShift}
                 onDeleteShift={deleteShift}
                 onOpenAddModal={() => {
@@ -181,6 +196,7 @@ export function App() {
                   setIsShiftModalOpen(true);
                 }}
                 onOpenAttendance={handleOpenAttendance}
+                onOpenAsfModal={handleOpenAsfModal}
                 conflicts={conflicts}
               />
             )}
@@ -191,8 +207,10 @@ export function App() {
                 stats={stats}
                 monitors={monitors}
                 selectedMonth={selectedMonth}
+                currentUser={currentUser}
                 onUpdateMonitorRate={handleUpdateMonitorRate}
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
+                onOpenAsfModal={handleOpenAsfModal}
               />
             )}
           </div>
@@ -250,6 +268,23 @@ export function App() {
         onDeleteMonitor={deleteMonitor}
         onResetPassword={resetPassword}
         onUpdateSettings={updateSettings}
+      />
+
+      {/* ASF RH Modal */}
+      <AsfModal
+        isOpen={isAsfModalOpen}
+        onClose={() => {
+          setIsAsfModalOpen(false);
+          setAsfModalMonitorId(null);
+        }}
+        monitors={monitors}
+        stats={stats}
+        selectedMonth={selectedMonth}
+        initialMonitorId={asfModalMonitorId}
+        asfRecords={asfRecords}
+        currentUser={currentUser}
+        onSaveAsf={saveAsfRecord}
+        onDeleteAsf={deleteAsfRecord}
       />
 
     </div>

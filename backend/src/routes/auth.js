@@ -10,13 +10,17 @@ export const authRouter = express.Router();
  * Helper : Masquer le mot de passe dans les réponses publiques
  */
 function sanitizeUser(u) {
-  const canManage = u.role === 'manager' || u.canManage === true || u.name === 'Noah' || u.id === 'moniteur-1';
+  const isManager = u.role === 'manager';
+  const canViewManagement = isManager || u.canViewManagement === true || u.name === 'Noah' || u.id === 'moniteur-1';
+  const canManage = isManager; // Seules les manageuses peuvent administrer
   return {
     id: u.id,
     name: u.name,
     role: u.role || 'monitor',
+    isManager,
     canManage,
-    avatar: u.avatar || '👨‍🎓',
+    canViewManagement,
+    avatar: u.avatar || (isManager ? '👩‍🏫' : '👨‍🎓'),
     color: u.color || '#2563EB',
     hourlyRate: u.hourlyRate !== undefined ? Number(u.hourlyRate) : 9.55,
     bgLight: u.bgLight,

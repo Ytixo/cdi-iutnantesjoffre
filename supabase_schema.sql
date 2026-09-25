@@ -50,6 +50,23 @@ CREATE TABLE IF NOT EXISTS public.settings (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 5. Table des Déclarations ASF (Attestation de Service Fait / RH)
+CREATE TABLE IF NOT EXISTS public.asf_records (
+  id TEXT PRIMARY KEY,
+  monitor_id TEXT NOT NULL,
+  month TEXT NOT NULL, -- Format YYYY-MM
+  asf_hours NUMERIC NOT NULL DEFAULT 0.0,
+  hourly_rate NUMERIC NOT NULL DEFAULT 9.55,
+  asf_salary NUMERIC NOT NULL DEFAULT 0.0,
+  status TEXT DEFAULT 'declared', -- 'declared', 'draft', 'validated'
+  declared_by TEXT DEFAULT 'Manageuse',
+  declared_at TIMESTAMPTZ DEFAULT now(),
+  notes TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(monitor_id, month)
+);
+
 -- 5. Données Initiales : Comptes de Base
 -- Virginie (Manageuse), Kristell (Manageuse), Noah (Moniteur avec permissions), Lucas (Moniteur)
 INSERT INTO public.users (id, name, normalized_name, role, avatar, color, hourly_rate, password_hash)
@@ -94,12 +111,13 @@ ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.monitors DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.asf_records DISABLE ROW LEVEL SECURITY;
 
--- 7. Activer le temps réel (Realtime) sur les 4 tables
+-- 7. Activer le temps réel (Realtime) sur les tables
 DO $$
 BEGIN
   BEGIN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.users, public.monitors, public.shifts, public.settings;
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.users, public.monitors, public.shifts, public.settings, public.asf_records;
   EXCEPTION
     WHEN duplicate_object THEN NULL;
     WHEN undefined_object THEN NULL;

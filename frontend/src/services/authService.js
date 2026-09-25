@@ -9,6 +9,7 @@ export const DEFAULT_BASE_USERS = [
     name: 'Virginie',
     role: 'manager',
     canManage: true,
+    canViewManagement: true,
     avatar: '👩‍🏫',
     color: '#DB2777',
     hourlyRate: 9.55,
@@ -20,6 +21,7 @@ export const DEFAULT_BASE_USERS = [
     name: 'Kristell',
     role: 'manager',
     canManage: true,
+    canViewManagement: true,
     avatar: '👩‍🏫',
     color: '#D97706',
     hourlyRate: 9.55,
@@ -30,7 +32,8 @@ export const DEFAULT_BASE_USERS = [
     id: 'moniteur-1',
     name: 'Noah',
     role: 'monitor',
-    canManage: true,
+    canManage: false,
+    canViewManagement: true,
     avatar: '👨‍🎓',
     color: '#7C3AED',
     bgLight: '#EFF6FF',
@@ -44,6 +47,7 @@ export const DEFAULT_BASE_USERS = [
     name: 'Lucas',
     role: 'monitor',
     canManage: false,
+    canViewManagement: false,
     avatar: '👨‍🎓',
     color: '#475569',
     bgLight: '#ECFDF5',
@@ -56,13 +60,17 @@ export const DEFAULT_BASE_USERS = [
 
 function mapUserFromSupabase(row) {
   if (!row) return null;
-  const canManage = row.role === 'manager' || row.can_manage === true || row.name === 'Noah' || row.id === 'moniteur-1';
+  const isManager = row.role === 'manager';
+  const canViewManagement = isManager || row.can_view_management === true || row.name === 'Noah' || row.id === 'moniteur-1';
+  const canManage = isManager;
   return {
     id: row.id,
     name: row.name,
     role: row.role || 'monitor',
+    isManager,
     canManage,
-    avatar: row.avatar || (row.role === 'manager' ? '👩‍🏫' : '👨‍🎓'),
+    canViewManagement,
+    avatar: row.avatar || (isManager ? '👩‍🏫' : '👨‍🎓'),
     color: row.color || '#2563EB',
     hourlyRate: row.hourly_rate !== undefined ? Number(row.hourly_rate) : 9.55,
     hasPassword: Boolean(row.password_hash),
@@ -73,13 +81,17 @@ function mapUserFromSupabase(row) {
 
 function sanitizeUser(u) {
   if (!u) return null;
-  const canManage = u.role === 'manager' || u.canManage === true || u.name === 'Noah' || u.id === 'moniteur-1';
+  const isManager = u.role === 'manager';
+  const canViewManagement = isManager || u.canViewManagement === true || u.name === 'Noah' || u.id === 'moniteur-1';
+  const canManage = isManager;
   return {
     id: u.id,
     name: u.name,
     role: u.role || 'monitor',
+    isManager,
     canManage,
-    avatar: u.avatar || (u.role === 'manager' ? '👩‍🏫' : '👨‍🎓'),
+    canViewManagement,
+    avatar: u.avatar || (isManager ? '👩‍🏫' : '👨‍🎓'),
     color: u.color || '#2563EB',
     hourlyRate: u.hourlyRate !== undefined ? Number(u.hourlyRate) : 9.55,
     hasPassword: Boolean(u.passwordHash || u.hasPassword),
@@ -93,7 +105,7 @@ export const authService = {
     try {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY_SESSION);
       if (!raw) return null;
-      return JSON.parse(raw);
+      return sanitizeUser(JSON.parse(raw));
     } catch (e) {
       return null;
     }

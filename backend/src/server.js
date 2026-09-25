@@ -4,6 +4,7 @@ import { authRouter } from './routes/auth.js';
 import { shiftsRouter } from './routes/shifts.js';
 import { monitorsRouter } from './routes/monitors.js';
 import { statsRouter } from './routes/stats.js';
+import { asfRouter } from './routes/asf.js';
 import { sseHandler } from './sse.js';
 
 const app = express();
@@ -18,6 +19,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/shifts', shiftsRouter);
 app.use('/api/monitors', monitorsRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/asf', asfRouter);
 
 // Endpoint Server-Sent Events (SSE) pour le temps réel
 app.get('/api/events', sseHandler);

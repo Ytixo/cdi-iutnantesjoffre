@@ -13,8 +13,8 @@ export function Navbar({
   settings,
   conflictsCount = 0
 }) {
-  const canManage = currentUser?.role === 'manager' || currentUser?.canManage || currentUser?.name === 'Noah';
-  const isManager = currentUser?.role === 'manager';
+  const isManager = currentUser?.role === 'manager' || currentUser?.isManager;
+  const canViewManagement = isManager || currentUser?.canViewManagement || currentUser?.name === 'Noah';
 
   const getStatusInfo = () => {
     return {
@@ -118,7 +118,7 @@ export function Navbar({
             {/* Settings Button */}
             <button
               onClick={onOpenSettingsModal}
-              title={canManage ? "Gestion de l'équipe et paramètres" : "Paramètres du CDI"}
+              title={isManager ? "Gestion de l'équipe et paramètres" : canViewManagement ? "Consulter l'équipe et les réglages" : "Paramètres du CDI"}
               className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors border border-slate-200/80 shrink-0 cursor-pointer"
             >
               <Settings className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
